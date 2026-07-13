@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> CRV GAMES 3D Araba Simulator </title>
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background-color: #aaccff; user-select: none; }
+        #canvas-container { width: 100vw; height: 100vh; display: block; position: absolute; top: 0; left: 0; z-index: 1; }
+        #upload-panel { position: absolute; top: 200px; left: 20px; background: #ffffff; padding: 15px; border-radius: 12px; border: 3px solid #ffcc00; box-shadow: 0 4px 20px rgba(0,0,0,0.4); z-index: 99999 !important; font-size: 13px; text-align: center; width: 160px; box-sizing: border-box; }
+        #file-input { display: none; }
+        .upload-btn { background: #ffcc00; color: #333; font-weight: bold; padding: 8px 10px; border-radius: 6px; cursor: pointer; display: block; border: 1px solid #dbb300; transition: background 0.2s; margin-top: 8px; font-size: 11px; }
+        .upload-btn:hover { background: #e6b800; }
+        #file-status { margin-top: 8px; font-weight: bold; font-size: 11px; }
+        #speedometer-container { position: absolute; top: 20px; left: 20px; width: 160px; height: 160px; background: rgba(255, 255, 255, 0.95); border-radius: 50%; border: 4px solid #ffcc00; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #333; box-shadow: 0 4px 15px rgba(0,0,0,0.15); pointer-events: none; z-index: 1000; }
+        #gauge-needle { position: absolute; width: 4px; height: 65px; background: #ff3333; bottom: 50%; left: calc(50% - 2px); transform-origin: bottom center; transform: rotate(-120deg); transition: transform 0.05s ease-out; }
+        #gauge-center { position: absolute; width: 14px; height: 14px; background: #333; border-radius: 50%; z-index: 2; }
+        #speed-digital { font-size: 28px; font-family: monospace; font-weight: bold; margin-top: 40px; z-index: 1; }
+        #unit { font-size: 11px; color: #e69900; font-weight: bold; z-index: 1; }
+        #gear-box { position: absolute; bottom: 15px; font-size: 16px; font-weight: bold; background: #333; padding: 2px 10px; border-radius: 4px; color: #00ffcc; }
+        #controls { position: absolute; bottom: 20px; right: 20px; color: #333; background: rgba(255, 255, 255, 0.95); padding: 15px; border-radius: 12px; font-size: 13px; border: 1px solid #ccc; box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 1000; }
+        .key { background: #eee; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; font-weight: bold; color: #333; }
+    </style>
+</head>
+<body>
+    <div id="upload-panel">
+        <b style="color: #b38600;">🚖 MODELLER</b><br>
+        <span style="font-size:10px; color:#555;">Modeli anında yükle:</span>
+        <label for="file-input" class="upload-btn">📁 Taxi.glb Seç</label>
+        <input type="file" id="file-input" accept=".glb,.gltf">
+        <div id="file-status"></div>
+    </div>
+    <div id="speedometer-container">
+        <div id="gauge-needle"></div>
+        <div id="gauge-center"></div>
+        <div id="speed-digital">0</div>
+        <div id="unit">km/h</div>
+        <div id="gear-box">N</div>
+    </div>
+    <div id="controls">
+        <p style="margin-top:0; font-weight:bold; color:#e69900; font-size:14px; border-bottom:1px solid #ddd; padding-bottom:5px;">TAKSİ SÜRÜŞÜ</p>
+        <p><span class="key">W</span> / <span class="key">▲</span> Gaz Ver</p>
+        <p><span class="key">S</span> / <span class="key">▼</span> Fren / Geri</p>
+        <p><span class="key">A</span> / <span class="key">◄</span> Sol | <span class="key">D</span> / <span class="key">►</span> Sağ</p>
+        <p><span class="key">C</span> Kamera Değiştir (4 Açı)</p>
+        <p><span class="key">R</span> Aracı Sıfırla (Reset)</p>
+    </div>
+    <div id="canvas-container"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script>
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xddeeff);
+        scene.fog = new THREE.FogExp2(0xddeeff, 0.0001);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 500000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
+        scene.add(ambientLight);
+        const sunLight = new THREE.DirectionalLight(0xffffff, 1.8);
+        sunLight.position.set(4000, 9000, 4000);
+        scene.add(sunLight);
+        const mapSize = 40000;
+        function getTerrainHeight(x, z) {
+            let dist = Math.sqrt(x*x + z*z);
+            if (dist > 800) { return Math.sin(x * 0.0015) * Math.cos(z * 0.0015) * 160; }
+            return 0;
+        }
+        function createBuildingTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            for (let y = 20; y < canvas.height - 20; y += 30) {
+                for (let x = 15; x < canvas.width - 15; x += 25) {
+                    if (Math.random() > 0.15) {
+                        ctx.fillStyle = Math.random() > 0.3 ? '#ffdd44' : '#66ccff';
+                        ctx.fillRect(x, y, 14, 18);
+                    } else {
+                        ctx.fillStyle = '#161616'; ctx.fillRect(x, y, 14, 18);
+                    }
+                }
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+        const buildingTexture = createBuildingTexture();
+        const groundGeo = new THREE.PlaneGeometry(mapSize, mapSize, 100, 100);
+        groundGeo.rotateX(-Math.PI / 2);
+        const posAttr = groundGeo.attributes.position;
+        for (let i = 0; i < posAttr.count; i++) {
+            let x = posAttr.getX(i); let z = posAttr.getZ(i);
+            posAttr.setY(i, getTerrainHeight(x, z));
+        }
+        groundGeo.computeVertexNormals();
+        const canvas = document.createElement('canvas');
+        canvas.width = 512; canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#808080';
+        ctx.fillRect(0, 0, 512, 512);
+        ctx.fillStyle = '#ffffff';
+        for (let i = 0; i < 512; i += 128) { ctx.fillRect(240, i, 32, 64); }
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(50, 50);
+        const groundMesh = new THREE.Mesh(groundGeo, new THREE.MeshBasicMaterial({ map: texture }));
+        scene.add(groundMesh);
+        const buildings = [];
+        const buildingGroup = new THREE.Group();
+        const bGeo = new THREE.BoxGeometry(1, 1, 1);
+        const bMat = new THREE.MeshStandardMaterial({ map: buildingTexture, roughness: 0.5 });
+        for(let i=0; i<400; i++) {
+            const h = 400 + Math.random() * 900; const w = 300 + Math.random() * 150; const d = 300 + Math.random() * 150;
+            const building = new THREE.Mesh(bGeo, bMat); building.scale.set(w, h, d);
+            let x = (Math.random() - 0.5) * (mapSize - 6000);
+            let z = (Math.random() - 0.5) * (mapSize - 6000);
+            if(Math.abs(x) < 1500) x += (x > 0 ? 1800 : -1800);
+            if(Math.abs(z) < 1500) z += (z > 0 ? 1800 : -1800);
+            let groundY = getTerrainHeight(x, z);
+            building.position.set(x, groundY + h/2, z);
+            buildingGroup.add(building);
+            buildings.push({ box: new THREE.Box3().setFromObject(building), x: x, z: z, w: w, d: d });
+        }
+        scene.add(buildingGroup);
+        const carW = 120; const carH = 65; const carL = 160;
+        function addFourWheels(group, width, length) {
+            const wheelGeo = new THREE.CylinderGeometry(26, 26, 18, 32); wheelGeo.rotateZ(Math.PI / 2);
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1e1e1e, roughness: 0.8 });
+            const rimGeo = new THREE.CylinderGeometry(16, 16, 20, 16); rimGeo.rotateZ(Math.PI / 2);
+            const rimMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.7, roughness: 0.2 });
+            const positions = [{ x: width/2 + 2, z: length/3 }, { x: -width/2 - 2, z: length/3 }, { x: width/2 + 2, z: -length/3 }, { x: -width/2 - 2, z: -length/3 }];
+            positions.forEach(pos => {
+                const wMesh = new THREE.Mesh(wheelGeo, wheelMat); const rMesh = new THREE.Mesh(rimGeo, rimMat); wMesh.add(rMesh);
+                wMesh.position.set(pos.x, 26, pos.z); group.add(wMesh);
+            });
+        }
+        const trafficGroup = new THREE.Group(); const botCars = []; const botColors = [0xff4444, 0x4444ff, 0x222222, 0x11cc22, 0xff00bb];
+        for(let i=0; i<60; i++) {
+            const bot = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(carW, carH, carL), new THREE.MeshStandardMaterial({ color: botColors[Math.floor(Math.random()*botColors.length)], roughness: 0.3 }));
+            body.position.y = carH / 2 + 15; bot.add(body); addFourWheels(bot, carW, carL);
+            let bx = (Math.random() - 0.5) * (mapSize - 8000);
+            let bz = (Math.random() - 0.5) * (mapSize - 8000);
+            bot.position.set(bx, 10, bz);
+            let botData = { mesh: bot, speed: 70 + Math.random() * 50, dirX: Math.random() > 0.5 ? 1 : 0, dirZ: Math.random() > 0.5 ? 0 : 1, radius: 90 };
+            if(botData.dirX === 0 && botData.dirZ === 0) botData.dirZ = 1;
+            trafficGroup.add(bot); botCars.push(botData);
+        }
+        scene.add(trafficGroup);
+        let car = new THREE.Group(); scene.add(car);
+        let currentCarVisual = null;
+        function buildDefaultTaxi() {
+            if(currentCarVisual) car.remove(currentCarVisual);
+            currentCarVisual = new THREE.Group();
+            const yellowMat = new THREE.MeshStandardMaterial({ color: 0xf4b400, roughness: 0.15 });
+            const glassMat = new THREE.MeshStandardMaterial({ color: 0x222226 });
+            const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(115, 38, 170), yellowMat); bodyMesh.position.y = 35; currentCarVisual.add(bodyMesh);
+            const cabinMesh = new THREE.Mesh(new THREE.BoxGeometry(95, 30, 95), glassMat); cabinMesh.position.set(0, 68, -5); currentCarVisual.add(cabinMesh);
+            addFourWheels(currentCarVisual, 115, 170);
+            car.add(currentCarVisual);
+        }
+        buildDefaultTaxi();
+        document.getElementById('file-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const statusDiv = document.getElementById('file-status');
+            if (!file) return;
+            statusDiv.style.color = "orange"; statusDiv.innerText = "Okunuyor...";
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const arrayBuffer = event.target.result;
+                const loader = new THREE.GLTFLoader();
+                loader.parse(arrayBuffer, '', function(gltf) {
+                    if(currentCarVisual) car.remove(currentCarVisual);
+                    currentCarVisual = gltf.scene;
+                    currentCarVisual.traverse((child) => { if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; } });
+                    const finalBox = new THREE.Box3().setFromObject(currentCarVisual);
+                    const center = finalBox.getCenter(new THREE.Vector3());
+                    const size = finalBox.getSize(new THREE.Vector3());
+                    currentCarVisual.position.sub(center);
+                    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+                    const scaleFactor = (170.0 / maxDim) * 1.5;
+                    currentCarVisual.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                    currentCarVisual.position.y = size.y * scaleFactor * 0.35;
+                    car.add(currentCarVisual);
+                    statusDiv.style.color = "green"; statusDiv.innerText = "Yüklendi! ✔";
+                }, function(err) { statusDiv.style.color = "red"; statusDiv.innerText = "Yükleme hatası."; });
+            };
+            reader.readAsArrayBuffer(file);
+        });
+        let carPhysics = { speed: 0, maxSpeed: 800, maxReverseSpeed: -70, acceleration: 1.5, deceleration: 0.3, braking: 10.0, angle: 0, radius: 150 };
+        const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+        let cameraMode = 0;
+        window.addEventListener('keydown', (e) => {
+            if(e.key in keys) keys[e.key] = true;
+            if(e.key.toLowerCase() === 'c') cameraMode = (cameraMode + 1) % 4;
+            if(e.key.toLowerCase() === 'r') { car.position.set(0, 10, 0); carPhysics.speed = 0; carPhysics.angle = 0; }
+        });
+        window.addEventListener('keyup', (e) => { if(e.key in keys) keys[e.key] = false; });
+        function checkBuildingCollision(nextX, nextZ, radius) {
+            for (let i = 0; i < buildings.length; i++) {
+                let b = buildings[i];
+                if (nextX > b.x - b.w/2 - radius && nextX < b.x + b.w/2 + radius && nextZ > b.z - b.d/2 - radius && nextZ < b.z + b.d/2 + radius) { return true; }
+            }
+            return false;
+        }
+        function checkCarToBotCollisions(nextX, nextZ) {
+            for (let i = 0; i < botCars.length; i++) {
+                let bot = botCars[i];
+                let dx = nextX - bot.mesh.position.x;
+                let dz = nextZ - bot.mesh.position.z;
+                let distance = Math.sqrt(dx * dx + dz * dz);
+                if (distance < (carPhysics.radius + bot.radius)) {
+                    bot.mesh.position.x += Math.sin(carPhysics.angle) * carPhysics.speed * 0.50;
+                    bot.mesh.position.z += Math.cos(carPhysics.angle) * carPhysics.speed * 0.50;
+                    return true;
+                }
+            }
+            return false;
+        }
+        const needle = document.getElementById('gauge-needle');
+        const speedDigital = document.getElementById('speed-digital');
+        const gearBox = document.getElementById('gear-box');
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = Math.min(clock.getDelta(), 0.1);
+            if (keys.w || keys.ArrowUp) {
+                if (carPhysics.speed < 0) carPhysics.speed += carPhysics.braking;
+                else carPhysics.speed = Math.min(carPhysics.speed + carPhysics.acceleration, carPhysics.maxSpeed);
+            } else if (keys.s || keys.ArrowDown) {
+                if (carPhysics.speed > 0) carPhysics.speed -= carPhysics.braking;
+                else carPhysics.speed = Math.max(carPhysics.speed - carPhysics.acceleration, carPhysics.maxReverseSpeed);
+            } else {
+                if (carPhysics.speed > 0) carPhysics.speed = Math.max(carPhysics.speed - carPhysics.deceleration, 0);
+                else if (carPhysics.speed < 0) carPhysics.speed = Math.min(carPhysics.speed + carPhysics.deceleration, 0);
+            }
+            if (Math.abs(carPhysics.speed) > 0.1) {
+                const speedFactor = Math.min(Math.abs(carPhysics.speed) / 800, 1.0);
+                const direction = carPhysics.speed > 0 ? 1 : -1;
+                      //direksiyon//
+                if (keys.a || keys.ArrowLeft) carPhysics.angle += 0.12 * speedFactor * direction;
+                if (keys.d || keys.ArrowRight) carPhysics.angle -= 0.12 * speedFactor * direction;
+            }
+            let nextX = car.position.x + Math.sin(carPhysics.angle) * carPhysics.speed * delta * 5.5;
+            let nextZ = car.position.z + Math.cos(carPhysics.angle) * carPhysics.speed * delta * 5.5;
+            if (!checkBuildingCollision(nextX, nextZ, carPhysics.radius) && !checkCarToBotCollisions(nextX, nextZ)) {
+                car.position.x = nextX; car.position.z = nextZ;
+            } else { carPhysics.speed = -carPhysics.speed * 0.3; }
+            car.rotation.y = carPhysics.angle; car.position.y = getTerrainHeight(car.position.x, car.position.z);
+            botCars.forEach(bot => {
+                let nextBotX = bot.mesh.position.x + bot.dirX * bot.speed * delta * 5;
+                let nextBotZ = bot.mesh.position.z + bot.dirZ * bot.speed * delta * 5;
+                if (!checkBuildingCollision(nextBotX, nextBotZ, bot.radius)) { bot.mesh.position.x = nextBotX; bot.mesh.position.z = nextBotZ; }
+                else { bot.dirX = -bot.dirX; bot.dirZ = -bot.dirZ; }
+                bot.mesh.position.y = getTerrainHeight(bot.mesh.position.x, bot.mesh.position.z);
+            });
+            const displaySpeed = Math.round(Math.abs(carPhysics.speed));
+            speedDigital.innerText = displaySpeed;
+            needle.style.transform = `rotate(${-120 + (displaySpeed / 800) * 240}deg)`;
+            if (carPhysics.speed > 0.5) gearBox.innerText = "D";
+            else if (carPhysics.speed < -0.5) gearBox.innerText = "R";
+            else gearBox.innerText = "N";
+            if (cameraMode === 0) {
+                camera.position.x += ((car.position.x - Math.sin(carPhysics.angle) * 490) - camera.position.x) * 0.15;
+                camera.position.y += ((car.position.y + 210) - camera.position.y) * 0.15;
+                camera.position.z += ((car.position.z - Math.cos(carPhysics.angle) * 490) - camera.position.z) * 0.15;
+                camera.lookAt(car.position.x, car.position.y + 40, car.position.z);
+            } else if (cameraMode === 1) {
+                camera.position.set(car.position.x, car.position.y + 2000, car.position.z - 200);
+                camera.lookAt(car.position);
+            } else if (cameraMode === 2) {
+                camera.position.set(car.position.x + Math.sin(carPhysics.angle) * 35, car.position.y + 70, car.position.z + Math.cos(carPhysics.angle) * 35);
+                camera.lookAt(new THREE.Vector3(car.position.x + Math.sin(carPhysics.angle) * 300, car.position.y + 60, car.position.z + Math.cos(carPhysics.angle) * 300));
+            } else if (cameraMode === 3) {
+                camera.position.set(car.position.x + 350, car.position.y + 150, car.position.z + 350);
+                camera.lookAt(car.position);
+            }
+            renderer.render(scene, camera);
+        }
+        animate();
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+    </script>
+</body>
+</html>
