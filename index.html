@@ -347,8 +347,8 @@
             if (Math.abs(carPhysics.speed) > 0.1) {
                 const speedFactor = Math.min(Math.abs(carPhysics.speed) / 800, 1.0);
                 const direction = carPhysics.speed > 0 ? 1 : -1;
-                if (keys.a || keys.ArrowLeft) carPhysics.angle += 0.12 * speedFactor * direction;
-                if (keys.d || keys.ArrowRight) carPhysics.angle -= 0.12 * speedFactor * direction;
+                if (keys.a || keys.ArrowLeft) carPhysics.angle += 0.06 * speedFactor * direction;
+                if (keys.d || keys.ArrowRight) carPhysics.angle -= 0.06 * speedFactor * direction;
             }
 
             let nextX = car.position.x + Math.sin(carPhysics.angle) * carPhysics.speed * delta * 5.5;
