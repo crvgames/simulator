@@ -1,10 +1,9 @@
- <!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="tr">
 <head>
- <link rel="icon" href="favicon0.png" type="image/png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title> CRV GAMES 3D Araba Simulator </title>
+    <title>CRV GAMES 3D Araba Simulator</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body { margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background-color: #aaccff; touch-action: manipulation; }
@@ -15,21 +14,34 @@
         .upload-btn { background: #ffcc00; color: #333; font-weight: bold; padding: 8px 10px; border-radius: 6px; cursor: pointer; display: block; border: 1px solid #dbb300; transition: background 0.2s; margin-top: 6px; font-size: 11px; }
         .upload-btn:hover { background: #e6b800; }
         #file-status { margin-top: 6px; font-weight: bold; font-size: 11px; }
+
+        /* MOTOR SESİ PANELİ (YALNIZCA BURADAN DEĞİŞİR) */
+        #audio-panel { position: absolute; top: 315px; left: 20px; background: #ffffff; padding: 10px; border-radius: 12px; border: 3px solid #ffcc00; box-shadow: 0 4px 20px rgba(0,0,0,0.4); z-index: 9999 !important; font-size: 11px; text-align: center; width: 150px; }
+        .sound-select { width: 100%; padding: 6px; margin-top: 5px; border-radius: 6px; border: 1px solid #ccc; background: #fff; font-weight: bold; cursor: pointer; }
         
         #speedometer-container { position: absolute; top: 20px; left: 20px; width: 150px; height: 150px; background: rgba(255, 255, 255, 0.92); border-radius: 50%; border: 4px solid #ffcc00; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #333; box-shadow: 0 4px 15px rgba(0,0,0,0.15); pointer-events: none; z-index: 1000; }
         #gauge-needle { position: absolute; width: 4px; height: 60px; background: #ff3333; bottom: 50%; left: calc(50% - 2px); transform-origin: bottom center; transform: rotate(-120deg); transition: transform 0.05s ease-out; }
         #gauge-center { position: absolute; width: 14px; height: 14px; background: #333; border-radius: 50%; z-index: 2; }
-        #speed-digital { font-size: 26px; font-family: monospace; font-weight: bold; margin-top: 35px; z-index: 1; }
-        #unit { font-size: 11px; color: #e69900; font-weight: bold; z-index: 1; }
-        #gear-box { position: absolute; bottom: 12px; font-size: 15px; font-weight: bold; background: #333; padding: 2px 8px; border-radius: 4px; color: #00ffcc; }
+        #speed-digital { font-size: 24px; font-family: monospace; font-weight: bold; margin-top: 30px; z-index: 1; }
+        #unit { font-size: 10px; color: #e69900; font-weight: bold; z-index: 1; }
+        #gear-box { position: absolute; bottom: 8px; font-size: 13px; font-weight: bold; background: #333; padding: 2px 6px; border-radius: 4px; color: #00ffcc; }
         
+        /* Benzin Göstergesi */
+        #fuel-gauge-box { position: absolute; top: 20px; width: 60px; height: 12px; background: #222; border-radius: 6px; border: 1px solid #ffcc00; overflow: hidden; }
+        #fuel-gauge-fill { width: 100%; height: 100%; background: #00ff66; transition: width 0.1s, background-color 0.3s; }
+        #fuel-label { position: absolute; top: 6px; font-size: 9px; font-weight: bold; color: #555; }
+
+        /* Minimap Paneli */
+        #minimap-container { position: absolute; bottom: 20px; left: 20px; width: 140px; height: 140px; background: rgba(0,0,0,0.7); border: 3px solid #ffcc00; border-radius: 12px; overflow: hidden; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        #minimap-canvas { width: 100%; height: 100%; display: block; }
+
         #controls { position: absolute; top: 20px; right: 20px; color: #333; background: rgba(255, 255, 255, 0.9); padding: 12px; border-radius: 12px; font-size: 12px; border: 1px solid #ccc; box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 1000; max-width: 220px; }
         .key { background: #eee; padding: 2px 5px; border-radius: 4px; border: 1px solid #ccc; font-weight: bold; color: #333; }
 
         /* MOBİL KONTROL ARAYÜZÜ */
         .mobile-btn-group { position: absolute; z-index: 9999; display: flex; gap: 15px; pointer-events: auto; }
         
-        #mobile-steering { bottom: 30px; left: 20px; }
+        #mobile-steering { bottom: 30px; left: 180px; }
         #mobile-pedals { bottom: 30px; right: 20px; flex-direction: column; align-items: flex-end; gap: 12px; }
         #mobile-actions { top: 20px; left: 50%; transform: translateX(-50%); gap: 12px; }
 
@@ -58,7 +70,8 @@
         .btn-action { width: 50px; height: 50px; font-size: 20px; border-radius: 12px; background: rgba(255,255,255,0.9); }
 
         @media (max-width: 768px) {
-          #controls { display: none; } /* Mobilde klavye ipucunu gizle */
+          #controls { display: none; }
+          #mobile-steering { left: 165px; }
         }
     </style>
 </head>
@@ -71,12 +84,28 @@
         <div id="file-status"></div>
     </div>
 
+    <div id="audio-panel">
+        <b style="color: #333;">🔊 MOTOR SESİ</b>
+        <select id="engine-select" class="sound-select">
+            <option value="sport">🏎️ Spor Araba</option>
+            <option value="muscle">🚘 Kas V8</option>
+            <option value="electric">⚡ Elektrikli</option>
+            <option value="off">🔇 Sessiz</option>
+        </select>
+    </div>
+
     <div id="speedometer-container">
+        <div id="fuel-label">⛽ BENZİN</div>
+        <div id="fuel-gauge-box"><div id="fuel-gauge-fill"></div></div>
         <div id="gauge-needle"></div>
         <div id="gauge-center"></div>
         <div id="speed-digital">0</div>
         <div id="unit">km/h</div>
         <div id="gear-box">N</div>
+    </div>
+
+    <div id="minimap-container">
+        <canvas id="minimap-canvas" width="140" height="140"></canvas>
     </div>
 
     <div id="controls">
@@ -86,9 +115,9 @@
         <p><span class="key">A</span> / <span class="key">◄</span> Sol | <span class="key">D</span> / <span class="key">►</span> Sağ</p>
         <p><span class="key">C</span> Kamera Değiştir (4 Açı)</p>
         <p><span class="key">R</span> Aracı Sıfırla (Reset)</p>
+        <p style="color:#009933; font-weight:bold; margin-bottom:0;">⛽ Yeşil alanlarda benzin dolup sıfırlanır.</p>
     </div>
 
-    <!-- MOBİL DOKUNMATİK KONTROLLER -->
     <div class="mobile-btn-group" id="mobile-steering">
         <div class="m-btn btn-steer" id="btn-left">◀</div>
         <div class="m-btn btn-steer" id="btn-right">▶</div>
@@ -96,7 +125,7 @@
 
     <div class="mobile-btn-group" id="mobile-pedals">
         <div class="m-btn btn-pedal-gas" id="btn-gas">GAZ</div>
-        <div class="m-btn btn-pedal-brake" id="btn-brake">FREN/GERİ VİTES</div>
+        <div class="m-btn btn-pedal-brake" id="btn-brake">FREN</div>
     </div>
 
     <div class="mobile-btn-group" id="mobile-actions">
@@ -109,40 +138,128 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script>
+        // WEB AUDIO API MOTOR SESİ SİSTEMİ
+        let audioCtx = null;
+        let osc1 = null, osc2 = null, gainNode = null;
+        let currentEngine = 'sport';
+
+        function initAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+            osc1 = audioCtx.createOscillator();
+            osc2 = audioCtx.createOscillator();
+            gainNode = audioCtx.createGain();
+
+            osc1.type = 'sawtooth';
+            osc2.type = 'triangle';
+
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+
+            osc1.connect(gainNode);
+            osc2.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            osc1.start();
+            osc2.start();
+        }
+
+        function updateEngineSound(speed, isAccelerating) {
+            if (!audioCtx) return;
+            if (currentEngine === 'off') {
+                gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+                return;
+            }
+
+            let absSpeed = Math.abs(speed);
+            let rpmRatio = (absSpeed / 800);
+            
+            let baseFreq = 40;
+            let targetVol = 0.15;
+
+            if (currentEngine === 'sport') {
+                osc1.type = 'sawtooth';
+                osc2.type = 'square';
+                baseFreq = 60 + rpmRatio * 220;
+                targetVol = isAccelerating ? 0.22 : 0.12;
+            } else if (currentEngine === 'muscle') {
+                osc1.type = 'sawtooth';
+                osc2.type = 'triangle';
+                baseFreq = 35 + rpmRatio * 140;
+                targetVol = isAccelerating ? 0.35 : 0.18;
+            } else if (currentEngine === 'electric') {
+                osc1.type = 'sine';
+                osc2.type = 'sine';
+                baseFreq = 150 + rpmRatio * 600;
+                targetVol = isAccelerating ? 0.15 : 0.05;
+            }
+
+            osc1.frequency.setTargetAtTime(baseFreq, audioCtx.currentTime, 0.05);
+            osc2.frequency.setTargetAtTime(baseFreq * 1.5, audioCtx.currentTime, 0.05);
+
+            if (absSpeed < 1 && !isAccelerating) {
+                targetVol = 0.05; 
+            }
+
+            gainNode.gain.setTargetAtTime(targetVol, audioCtx.currentTime, 0.05);
+        }
+
+        // SES YALNIZCA SEÇİM MENÜSÜNDEN DEĞİŞİR (Klavyeden değiştirme kaldırıldı)
+        const engineSelect = document.getElementById('engine-select');
+        engineSelect.addEventListener('change', (e) => {
+            currentEngine = e.target.value;
+            initAudio();
+            engineSelect.blur(); // Odaklanmayı kaldır ki Space/Enter gibi tuşlar menüyü tekrar tetiklemesin
+        });
+
+        // Sayfa etkileşiminde ilk ses başlatma
+        window.addEventListener('click', initAudio, { once: true });
+        window.addEventListener('keydown', initAudio, { once: true });
+        window.addEventListener('touchstart', initAudio, { once: true });
+
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0xddeeff);
-        scene.fog = new THREE.FogExp2(0xddeeff, 0.0001);
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 500000);
+        scene.fog = new THREE.FogExp2(0xddeeff, 0.00002);
+        
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1000000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         container.appendChild(renderer.domElement);
 
         const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
         scene.add(ambientLight);
+        
         const sunLight = new THREE.DirectionalLight(0xffffff, 1.8);
-        sunLight.position.set(4000, 9000, 4000);
+        sunLight.position.set(20000, 45000, 20000);
         scene.add(sunLight);
 
-        const mapSize = 40000;
+        const mapSize = 200000;
+        
         function getTerrainHeight(x, z) {
             let dist = Math.sqrt(x*x + z*z);
-            if (dist > 800) { return Math.sin(x * 0.0015) * Math.cos(z * 0.0015) * 160; }
+            if (dist > 800) { 
+                return Math.sin(x * 0.0015) * Math.cos(z * 0.0015) * 160; 
+            }
             return 0;
         }
 
         function createBuildingTexture() {
             const canvas = document.createElement('canvas');
-            canvas.width = 256; canvas.height = 512;
+            canvas.width = 256; 
+            canvas.height = 512;
             const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#0a0a0a'; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
             for (let y = 20; y < canvas.height - 20; y += 30) {
                 for (let x = 15; x < canvas.width - 15; x += 25) {
                     if (Math.random() > 0.15) {
                         ctx.fillStyle = Math.random() > 0.3 ? '#ffdd44' : '#66ccff';
                         ctx.fillRect(x, y, 14, 18);
                     } else {
-                        ctx.fillStyle = '#161616'; ctx.fillRect(x, y, 14, 18);
+                        ctx.fillStyle = '#161616'; 
+                        ctx.fillRect(x, y, 14, 18);
                     }
                 }
             }
@@ -150,25 +267,31 @@
         }
 
         const buildingTexture = createBuildingTexture();
-        const groundGeo = new THREE.PlaneGeometry(mapSize, mapSize, 100, 100);
+        const groundGeo = new THREE.PlaneGeometry(mapSize, mapSize, 200, 200);
         groundGeo.rotateX(-Math.PI / 2);
+        
         const posAttr = groundGeo.attributes.position;
         for (let i = 0; i < posAttr.count; i++) {
-            let x = posAttr.getX(i); let z = posAttr.getZ(i);
+            let x = posAttr.getX(i); 
+            let z = posAttr.getZ(i);
             posAttr.setY(i, getTerrainHeight(x, z));
         }
         groundGeo.computeVertexNormals();
 
         const canvas = document.createElement('canvas');
-        canvas.width = 512; canvas.height = 512;
+        canvas.width = 512; 
+        canvas.height = 512;
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#808080';
         ctx.fillRect(0, 0, 512, 512);
         ctx.fillStyle = '#ffffff';
-        for (let i = 0; i < 512; i += 128) { ctx.fillRect(240, i, 32, 64); }
+        for (let i = 0; i < 512; i += 128) { 
+            ctx.fillRect(240, i, 32, 64); 
+        }
+        
         const texture = new THREE.CanvasTexture(canvas);
         texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(50, 50);
+        texture.repeat.set(250, 250);
 
         const groundMesh = new THREE.Mesh(groundGeo, new THREE.MeshBasicMaterial({ map: texture }));
         scene.add(groundMesh);
@@ -177,13 +300,20 @@
         const buildingGroup = new THREE.Group();
         const bGeo = new THREE.BoxGeometry(1, 1, 1);
         const bMat = new THREE.MeshStandardMaterial({ map: buildingTexture, roughness: 0.5 });
-        for(let i=0; i<400; i++) {
-            const h = 400 + Math.random() * 900; const w = 300 + Math.random() * 150; const d = 300 + Math.random() * 150;
-            const building = new THREE.Mesh(bGeo, bMat); building.scale.set(w, h, d);
-            let x = (Math.random() - 0.5) * (mapSize - 6000);
-            let z = (Math.random() - 0.5) * (mapSize - 6000);
+        
+        for(let i = 0; i < 1000; i++) {
+            const h = 400 + Math.random() * 900; 
+            const w = 300 + Math.random() * 150; 
+            const d = 300 + Math.random() * 150;
+            const building = new THREE.Mesh(bGeo, bMat); 
+            building.scale.set(w, h, d);
+            
+            let x = (Math.random() - 0.5) * (mapSize - 10000);
+            let z = (Math.random() - 0.5) * (mapSize - 10000);
+            
             if(Math.abs(x) < 1500) x += (x > 0 ? 1800 : -1800);
             if(Math.abs(z) < 1500) z += (z > 0 ? 1800 : -1800);
+            
             let groundY = getTerrainHeight(x, z);
             building.position.set(x, groundY + h/2, z);
             buildingGroup.add(building);
@@ -191,42 +321,114 @@
         }
         scene.add(buildingGroup);
 
-        const carW = 120; const carH = 65; const carL = 160;
+        const gasStations = [];
+        const gasStationGroup = new THREE.Group();
+
+        function createGasStation(x, z) {
+            const station = new THREE.Group();
+            let groundY = getTerrainHeight(x, z);
+            
+            const padMesh = new THREE.Mesh(new THREE.BoxGeometry(400, 10, 400), new THREE.MeshStandardMaterial({ color: 0x00cc44 }));
+            padMesh.position.set(0, 5, 0);
+            station.add(padMesh);
+
+            const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(360, 20, 360), new THREE.MeshStandardMaterial({ color: 0xee2222 }));
+            roofMesh.position.set(0, 160, 0);
+            station.add(roofMesh);
+
+            const poleMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+            const p1 = new THREE.Mesh(new THREE.CylinderGeometry(12, 12, 150), poleMat); p1.position.set(-140, 75, -140); station.add(p1);
+            const p2 = new THREE.Mesh(new THREE.CylinderGeometry(12, 12, 150), poleMat); p2.position.set(140, 75, -140); station.add(p2);
+            const p3 = new THREE.Mesh(new THREE.CylinderGeometry(12, 12, 150), poleMat); p3.position.set(-140, 75, 140); station.add(p3);
+            const p4 = new THREE.Mesh(new THREE.CylinderGeometry(12, 12, 150), poleMat); p4.position.set(140, 75, 140); station.add(p4);
+
+            const pumpMat = new THREE.MeshStandardMaterial({ color: 0xffcc00 });
+            const pump1 = new THREE.Mesh(new THREE.BoxGeometry(40, 70, 30), pumpMat); pump1.position.set(-60, 40, 0); station.add(pump1);
+            const pump2 = new THREE.Mesh(new THREE.BoxGeometry(40, 70, 30), pumpMat); pump2.position.set(60, 40, 0); station.add(pump2);
+
+            station.position.set(x, groundY, z);
+            gasStationGroup.add(station);
+            gasStations.push({ x: x, z: z, radius: 220 });
+        }
+
+        const gasCoords = [
+            {x: 800, z: 800}, {x: -3000, z: 4000}, {x: 5000, z: -5000}, {x: -8000, z: -2000},
+            {x: 12000, z: 8000}, {x: -15000, z: 12000}, {x: 18000, z: -15000}, {x: -20000, z: -18000}
+        ];
+        gasCoords.forEach(c => createGasStation(c.x, c.z));
+        scene.add(gasStationGroup);
+
+        const carW = 120; 
+        const carH = 65; 
+        const carL = 160;
+        
         function addFourWheels(group, width, length) {
-            const wheelGeo = new THREE.CylinderGeometry(26, 26, 18, 32); wheelGeo.rotateZ(Math.PI / 2);
+            const wheelGeo = new THREE.CylinderGeometry(26, 26, 18, 32); 
+            wheelGeo.rotateZ(Math.PI / 2);
             const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1e1e1e, roughness: 0.8 });
-            const rimGeo = new THREE.CylinderGeometry(16, 16, 20, 16); rimGeo.rotateZ(Math.PI / 2);
+            
+            const rimGeo = new THREE.CylinderGeometry(16, 16, 20, 16); 
+            rimGeo.rotateZ(Math.PI / 2);
             const rimMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.7, roughness: 0.2 });
-            const positions = [{ x: width/2 + 2, z: length/3 }, { x: -width/2 - 2, z: length/3 }, { x: width/2 + 2, z: -length/3 }, { x: -width/2 - 2, z: -length/3 }];
+            
+            const positions = [
+                { x: width/2 + 2, z: length/3 }, 
+                { x: -width/2 - 2, z: length/3 }, 
+                { x: width/2 + 2, z: -length/3 }, 
+                { x: -width/2 - 2, z: -length/3 }
+            ];
+            
             positions.forEach(pos => {
-                const wMesh = new THREE.Mesh(wheelGeo, wheelMat); const rMesh = new THREE.Mesh(rimGeo, rimMat); wMesh.add(rMesh);
-                wMesh.position.set(pos.x, 26, pos.z); group.add(wMesh);
+                const wMesh = new THREE.Mesh(wheelGeo, wheelMat); 
+                const rMesh = new THREE.Mesh(rimGeo, rimMat); 
+                wMesh.add(rMesh);
+                wMesh.position.set(pos.x, 26, pos.z); 
+                group.add(wMesh);
             });
         }
 
-        const trafficGroup = new THREE.Group(); const botCars = []; const botColors = [0xff4444, 0x4444ff, 0x222222, 0x11cc22, 0xff00bb];
-        for(let i=0; i<60; i++) {
+        const trafficGroup = new THREE.Group(); 
+        const botCars = []; 
+        const botColors = [0xff4444, 0x4444ff, 0x222222, 0x11cc22, 0xff00bb];
+        
+        for(let i = 0; i < 120; i++) {
             const bot = new THREE.Group();
             const body = new THREE.Mesh(new THREE.BoxGeometry(carW, carH, carL), new THREE.MeshStandardMaterial({ color: botColors[Math.floor(Math.random()*botColors.length)], roughness: 0.3 }));
-            body.position.y = carH / 2 + 15; bot.add(body); addFourWheels(bot, carW, carL);
-            let bx = (Math.random() - 0.5) * (mapSize - 8000);
-            let bz = (Math.random() - 0.5) * (mapSize - 8000);
+            body.position.y = carH / 2 + 15; 
+            bot.add(body); 
+            addFourWheels(bot, carW, carL);
+            
+            let bx = (Math.random() - 0.5) * (mapSize - 10000);
+            let bz = (Math.random() - 0.5) * (mapSize - 10000);
             bot.position.set(bx, 10, bz);
+            
             let botData = { mesh: bot, speed: 70 + Math.random() * 50, dirX: Math.random() > 0.5 ? 1 : 0, dirZ: Math.random() > 0.5 ? 0 : 1, radius: 90 };
             if(botData.dirX === 0 && botData.dirZ === 0) botData.dirZ = 1;
-            trafficGroup.add(bot); botCars.push(botData);
+            
+            trafficGroup.add(bot); 
+            botCars.push(botData);
         }
         scene.add(trafficGroup);
 
-        let car = new THREE.Group(); scene.add(car);
+        let car = new THREE.Group(); 
+        scene.add(car);
         let currentCarVisual = null;
+        
         function buildDefaultTaxi() {
             if(currentCarVisual) car.remove(currentCarVisual);
             currentCarVisual = new THREE.Group();
+            
             const yellowMat = new THREE.MeshStandardMaterial({ color: 0xf4b400, roughness: 0.15 });
             const glassMat = new THREE.MeshStandardMaterial({ color: 0x222226 });
-            const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(115, 38, 170), yellowMat); bodyMesh.position.y = 35; currentCarVisual.add(bodyMesh);
-            const cabinMesh = new THREE.Mesh(new THREE.BoxGeometry(95, 30, 95), glassMat); cabinMesh.position.set(0, 68, -5); currentCarVisual.add(cabinMesh);
+            
+            const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(115, 38, 170), yellowMat); 
+            bodyMesh.position.y = 35; 
+            currentCarVisual.add(bodyMesh);
+            
+            const cabinMesh = new THREE.Mesh(new THREE.BoxGeometry(95, 30, 95), glassMat); 
+            cabinMesh.position.set(0, 68, -5); 
+            currentCarVisual.add(cabinMesh);
+            
             addFourWheels(currentCarVisual, 115, 170);
             car.add(currentCarVisual);
         }
@@ -236,7 +438,10 @@
             const file = e.target.files[0];
             const statusDiv = document.getElementById('file-status');
             if (!file) return;
-            statusDiv.style.color = "orange"; statusDiv.innerText = "Okunuyor...";
+            
+            statusDiv.style.color = "orange"; 
+            statusDiv.innerText = "Okunuyor...";
+            
             const reader = new FileReader();
             reader.onload = function(event) {
                 const arrayBuffer = event.target.result;
@@ -244,41 +449,58 @@
                 loader.parse(arrayBuffer, '', function(gltf) {
                     if(currentCarVisual) car.remove(currentCarVisual);
                     currentCarVisual = gltf.scene;
-                    currentCarVisual.traverse((child) => { if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; } });
+                    currentCarVisual.traverse((child) => { 
+                        if (child.isMesh) { 
+                            child.castShadow = true; 
+                            child.receiveShadow = true; 
+                        } 
+                    });
+                    
                     const finalBox = new THREE.Box3().setFromObject(currentCarVisual);
                     const center = finalBox.getCenter(new THREE.Vector3());
                     const size = finalBox.getSize(new THREE.Vector3());
+                    
                     currentCarVisual.position.sub(center);
                     const maxDim = Math.max(size.x, size.y, size.z) || 1;
                     const scaleFactor = (170.0 / maxDim) * 1.5;
+                    
                     currentCarVisual.scale.set(scaleFactor, scaleFactor, scaleFactor);
                     currentCarVisual.position.y = size.y * scaleFactor * 0.35;
+                    
                     car.add(currentCarVisual);
-                    statusDiv.style.color = "green"; statusDiv.innerText = "Yüklendi! ✔";
-                }, function(err) { statusDiv.style.color = "red"; statusDiv.innerText = "Yükleme hatası."; });
+                    statusDiv.style.color = "green"; 
+                    statusDiv.innerText = "Yüklendi! ✔";
+                }, function(err) { 
+                    statusDiv.style.color = "red"; 
+                    statusDiv.innerText = "Yükleme hatası."; 
+                });
             };
             reader.readAsArrayBuffer(file);
         });
 
         let carPhysics = { speed: 0, maxSpeed: 800, maxReverseSpeed: -70, acceleration: 1.5, deceleration: 0.3, braking: 10.0, angle: 0, radius: 150 };
+        let fuel = 100;
+        
         const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
         let cameraMode = 0;
 
-        // Masaüstü Klavye Kontrolleri
         window.addEventListener('keydown', (e) => {
             if(e.key in keys) keys[e.key] = true;
             if(e.key.toLowerCase() === 'c') cameraMode = (cameraMode + 1) % 4;
             if(e.key.toLowerCase() === 'r') resetCar();
         });
-        window.addEventListener('keyup', (e) => { if(e.key in keys) keys[e.key] = false; });
+        
+        window.addEventListener('keyup', (e) => { 
+            if(e.key in keys) keys[e.key] = false; 
+        });
 
         function resetCar() {
             car.position.set(0, 10, 0);
             carPhysics.speed = 0;
             carPhysics.angle = 0;
+            fuel = 100;
         }
 
-        // DOKUNMATİK MOBİL KONTROL BAĞLANTILARI
         function bindTouchControl(elementId, actionStart, actionEnd) {
             const btn = document.getElementById(elementId);
             const start = (e) => { e.preventDefault(); actionStart(); };
@@ -305,7 +527,9 @@
         function checkBuildingCollision(nextX, nextZ, radius) {
             for (let i = 0; i < buildings.length; i++) {
                 let b = buildings[i];
-                if (nextX > b.x - b.w/2 - radius && nextX < b.x + b.w/2 + radius && nextZ > b.z - b.d/2 - radius && nextZ < b.z + b.d/2 + radius) { return true; }
+                if (nextX > b.x - b.w/2 - radius && nextX < b.x + b.w/2 + radius && nextZ > b.z - b.d/2 - radius && nextZ < b.z + b.d/2 + radius) { 
+                    return true; 
+                }
             }
             return false;
         }
@@ -325,25 +549,96 @@
             return false;
         }
 
+        function checkFuelRefill() {
+            for (let i = 0; i < gasStations.length; i++) {
+                let gs = gasStations[i];
+                let dx = car.position.x - gs.x;
+                let dz = car.position.z - gs.z;
+                if (Math.sqrt(dx * dx + dz * dz) < gs.radius) {
+                    fuel = Math.min(100, fuel + 0.8);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        const minimapCanvas = document.getElementById('minimap-canvas');
+        const mCtx = minimapCanvas.getContext('2d');
+
+        function drawMinimap() {
+            mCtx.clearRect(0, 0, 140, 140);
+            
+            mCtx.fillStyle = '#111822';
+            mCtx.fillRect(0, 0, 140, 140);
+
+            const mapScale = 0.015;
+            const centerX = 70;
+            const centerY = 70;
+
+            mCtx.fillStyle = '#555566';
+            buildings.forEach(b => {
+                let relX = (b.x - car.position.x) * mapScale;
+                let relZ = (b.z - car.position.z) * mapScale;
+                if (Math.abs(relX) < 70 && Math.abs(relZ) < 70) {
+                    mCtx.fillRect(centerX + relX - (b.w * mapScale)/2, centerY + relZ - (b.d * mapScale)/2, b.w * mapScale, b.d * mapScale);
+                }
+            });
+
+            mCtx.fillStyle = '#00ff44';
+            gasStations.forEach(gs => {
+                let relX = (gs.x - car.position.x) * mapScale;
+                let relZ = (gs.z - car.position.z) * mapScale;
+                if (Math.abs(relX) < 70 && Math.abs(relZ) < 70) {
+                    mCtx.beginPath();
+                    mCtx.arc(centerX + relX, centerY + relZ, 5, 0, Math.PI * 2);
+                    mCtx.fill();
+                }
+            });
+
+            mCtx.save();
+            mCtx.translate(centerX, centerY);
+            mCtx.rotate(-carPhysics.angle);
+            mCtx.fillStyle = '#ff3333';
+            mCtx.beginPath();
+            mCtx.moveTo(0, 8);
+            mCtx.lineTo(5, -6);
+            mCtx.lineTo(-5, -6);
+            mCtx.closePath();
+            mCtx.fill();
+            mCtx.restore();
+        }
+
         const needle = document.getElementById('gauge-needle');
         const speedDigital = document.getElementById('speed-digital');
         const gearBox = document.getElementById('gear-box');
+        const fuelGaugeFill = document.getElementById('fuel-gauge-fill');
         const clock = new THREE.Clock();
 
         function animate() {
             requestAnimationFrame(animate);
             const delta = Math.min(clock.getDelta(), 0.1);
 
-            if (keys.w || keys.ArrowUp) {
+            const isRefilling = checkFuelRefill();
+            const canAccelerate = fuel > 0;
+            let isAccelerating = false;
+
+            if ((keys.w || keys.ArrowUp) && canAccelerate) {
                 if (carPhysics.speed < 0) carPhysics.speed += carPhysics.braking;
                 else carPhysics.speed = Math.min(carPhysics.speed + carPhysics.acceleration, carPhysics.maxSpeed);
+                fuel = Math.max(0, fuel - 0.025);
+                isAccelerating = true;
             } else if (keys.s || keys.ArrowDown) {
                 if (carPhysics.speed > 0) carPhysics.speed -= carPhysics.braking;
-                else carPhysics.speed = Math.max(carPhysics.speed - carPhysics.acceleration, carPhysics.maxReverseSpeed);
+                else if (canAccelerate) carPhysics.speed = Math.max(carPhysics.speed - carPhysics.acceleration, carPhysics.maxReverseSpeed);
+                if (canAccelerate) fuel = Math.max(0, fuel - 0.02);
+                isAccelerating = true;
             } else {
                 if (carPhysics.speed > 0) carPhysics.speed = Math.max(carPhysics.speed - carPhysics.deceleration, 0);
                 else if (carPhysics.speed < 0) carPhysics.speed = Math.min(carPhysics.speed + carPhysics.deceleration, 0);
             }
+
+            // Motor Sesini Güncelle
+            updateEngineSound(carPhysics.speed, isAccelerating);
 
             if (Math.abs(carPhysics.speed) > 0.1) {
                 const speedFactor = Math.min(Math.abs(carPhysics.speed) / 800, 1.0);
@@ -354,23 +649,38 @@
 
             let nextX = car.position.x + Math.sin(carPhysics.angle) * carPhysics.speed * delta * 5.5;
             let nextZ = car.position.z + Math.cos(carPhysics.angle) * carPhysics.speed * delta * 5.5;
+            
             if (!checkBuildingCollision(nextX, nextZ, carPhysics.radius) && !checkCarToBotCollisions(nextX, nextZ)) {
-                car.position.x = nextX; car.position.z = nextZ;
-            } else { carPhysics.speed = -carPhysics.speed * 0.3; }
+                car.position.x = nextX; 
+                car.position.z = nextZ;
+            } else { 
+                carPhysics.speed = -carPhysics.speed * 0.3; 
+            }
 
-            car.rotation.y = carPhysics.angle; car.position.y = getTerrainHeight(car.position.x, car.position.z);
+            car.rotation.y = carPhysics.angle; 
+            car.position.y = getTerrainHeight(car.position.x, car.position.z);
 
             botCars.forEach(bot => {
                 let nextBotX = bot.mesh.position.x + bot.dirX * bot.speed * delta * 5;
                 let nextBotZ = bot.mesh.position.z + bot.dirZ * bot.speed * delta * 5;
-                if (!checkBuildingCollision(nextBotX, nextBotZ, bot.radius)) { bot.mesh.position.x = nextBotX; bot.mesh.position.z = nextBotZ; }
-                else { bot.dirX = -bot.dirX; bot.dirZ = -bot.dirZ; }
+                if (!checkBuildingCollision(nextBotX, nextBotZ, bot.radius)) { 
+                    bot.mesh.position.x = nextBotX; 
+                    bot.mesh.position.z = nextBotZ; 
+                } else { 
+                    bot.dirX = -bot.dirX; 
+                    bot.dirZ = -bot.dirZ; 
+                }
                 bot.mesh.position.y = getTerrainHeight(bot.mesh.position.x, bot.mesh.position.z);
             });
 
-            const displaySpeed = Math.round(Math.abs(carPhysics.speed));
+            const displaySpeed = Math.round((Math.abs(carPhysics.speed) / 800) * 240);
             speedDigital.innerText = displaySpeed;
-            needle.style.transform = `rotate(${-120 + (displaySpeed / 800) * 240}deg)`;
+            needle.style.transform = `rotate(${-120 + (displaySpeed / 240) * 240}deg)`;
+
+            fuelGaugeFill.style.width = fuel + '%';
+            if (fuel > 50) fuelGaugeFill.style.backgroundColor = '#00ff66';
+            else if (fuel > 20) fuelGaugeFill.style.backgroundColor = '#ffcc00';
+            else fuelGaugeFill.style.backgroundColor = '#ff3333';
 
             if (carPhysics.speed > 0.5) gearBox.innerText = "D";
             else if (carPhysics.speed < -0.5) gearBox.innerText = "R";
@@ -392,6 +702,7 @@
                 camera.lookAt(car.position);
             }
 
+            drawMinimap();
             renderer.render(scene, camera);
         }
 
