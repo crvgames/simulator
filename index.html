@@ -1,8 +1,8 @@
-  <!DOCTYPE html>
+
+ <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <link rel="icon" href="favicon0.png" type="image/png">
-  <meta name="google-site-verification" content="kLCS6z8Lb3jZLTBq6-TJDJSFEFtRTSW3B3IMBYlx5wo" />
+ <meta name="google-site-verification" content="kLCS6z8Lb3jZLTBq6-TJDJSFEFtRTSW3B3IMBYlx5wo" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CRV GAMES 3D Araba Simulator</title>
@@ -11,14 +11,14 @@
         body { margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background-color: #aaccff; touch-action: manipulation; }
         #canvas-container { width: 100vw; height: 100vh; display: block; position: absolute; top: 0; left: 0; z-index: 1; }
         
-        #upload-panel { position: absolute; top: 190px; left: 20px; background: #ffffff; padding: 12px; border-radius: 12px; border: 3px solid #ffcc00; box-shadow: 0 4px 20px rgba(0,0,0,0.4); z-index: 9999 !important; font-size: 13px; text-align: center; width: 150px; }
-        #file-input { display: none; }
+        #upload-panel { position: absolute; top: 190px; left: 20px; background: #ffffff; padding: 12px; border-radius: 12px; border: 3px solid #ffcc00; box-shadow: 0 4px 20px rgba(0,0,0,0.4); z-index: 9999 !important; font-size: 13px; text-align: center; width: 170px; }
+        #file-input, #bot-file-input { display: none; }
         .upload-btn { background: #ffcc00; color: #333; font-weight: bold; padding: 8px 10px; border-radius: 6px; cursor: pointer; display: block; border: 1px solid #dbb300; transition: background 0.2s; margin-top: 6px; font-size: 11px; }
         .upload-btn:hover { background: #e6b800; }
-        #file-status { margin-top: 6px; font-weight: bold; font-size: 11px; }
+        #file-status, #bot-file-status { margin-top: 4px; font-weight: bold; font-size: 10px; }
 
-        /* MOTOR SESİ PANELİ (YALNIZCA BURADAN DEĞİŞİR) */
-        #audio-panel { position: absolute; top: 315px; left: 20px; background: #ffffff; padding: 10px; border-radius: 12px; border: 3px solid #ffcc00; box-shadow: 0 4px 20px rgba(0,0,0,0.4); z-index: 9999 !important; font-size: 11px; text-align: center; width: 150px; }
+        /* MOTOR SESİ PANELİ */
+        #audio-panel { position: absolute; top: 385px; left: 20px; background: #ffffff; padding: 10px; border-radius: 12px; border: 3px solid #ffcc00; box-shadow: 0 4px 20px rgba(0,0,0,0.4); z-index: 9999 !important; font-size: 11px; text-align: center; width: 170px; }
         .sound-select { width: 100%; padding: 6px; margin-top: 5px; border-radius: 6px; border: 1px solid #ccc; background: #fff; font-weight: bold; cursor: pointer; }
         
         #speedometer-container { position: absolute; top: 20px; left: 20px; width: 150px; height: 150px; background: rgba(255, 255, 255, 0.92); border-radius: 50%; border: 4px solid #ffcc00; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #333; box-shadow: 0 4px 15px rgba(0,0,0,0.15); pointer-events: none; z-index: 1000; }
@@ -80,10 +80,16 @@
 <body>
     <div id="upload-panel">
         <b style="color: #b38600;">🚖 MODELLER</b><br>
-        <span style="font-size:10px; color:#555;">Modeli anında yükle:</span>
+        <span style="font-size:10px; color:#555;">Oyuncu Arabası:</span>
         <label for="file-input" class="upload-btn">📁 Araba.glb Seç</label>
         <input type="file" id="file-input" accept=".glb,.gltf">
         <div id="file-status"></div>
+
+        <hr style="border:0; border-top:1px solid #ddd; margin:8px 0;">
+        <span style="font-size:10px; color:#555;">Bot Arabaları (1-18.glb):</span>
+        <label for="bot-file-input" class="upload-btn" style="background:#4da6ff; border-color:#0073e6; color:#fff;">📁 18 Model Seç (Çoklu)</label>
+        <input type="file" id="bot-file-input" accept=".glb,.gltf" multiple>
+        <div id="bot-file-status">Varsayılan Kutular</div>
     </div>
 
     <div id="audio-panel">
@@ -140,7 +146,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script>
-        // WEB AUDIO API MOTOR SESİ SİSTEMİ
         let audioCtx = null;
         let osc1 = null, osc2 = null, gainNode = null;
         let currentEngine = 'sport';
@@ -206,15 +211,13 @@
             gainNode.gain.setTargetAtTime(targetVol, audioCtx.currentTime, 0.05);
         }
 
-        // SES YALNIZCA SEÇİM MENÜSÜNDEN DEĞİŞİR (Klavyeden değiştirme kaldırıldı)
         const engineSelect = document.getElementById('engine-select');
         engineSelect.addEventListener('change', (e) => {
             currentEngine = e.target.value;
             initAudio();
-            engineSelect.blur(); // Odaklanmayı kaldır ki Space/Enter gibi tuşlar menüyü tekrar tetiklemesin
+            engineSelect.blur();
         });
 
-        // Sayfa etkileşiminde ilk ses başlatma
         window.addEventListener('click', initAudio, { once: true });
         window.addEventListener('keydown', initAudio, { once: true });
         window.addEventListener('touchstart', initAudio, { once: true });
@@ -393,18 +396,28 @@
         const botCars = []; 
         const botColors = [0xff4444, 0x4444ff, 0x222222, 0x11cc22, 0xff00bb];
         
-        for(let i = 0; i < 120; i++) {
-            const bot = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(carW, carH, carL), new THREE.MeshStandardMaterial({ color: botColors[Math.floor(Math.random()*botColors.length)], roughness: 0.3 }));
+        function createDefaultBotVisual(colorHex) {
+            const group = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(carW, carH, carL), new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.3 }));
             body.position.y = carH / 2 + 15; 
-            bot.add(body); 
-            addFourWheels(bot, carW, carL);
+            group.add(body); 
+            addFourWheels(group, carW, carL);
+            return group;
+        }
+
+        let customBotScenes = [];
+
+        for(let i = 0; i < 240; i++) {
+            const bot = new THREE.Group();
+            let initialColor = botColors[Math.floor(Math.random()*botColors.length)];
+            let defaultVisual = createDefaultBotVisual(initialColor);
+            bot.add(defaultVisual);
             
             let bx = (Math.random() - 0.5) * (mapSize - 10000);
             let bz = (Math.random() - 0.5) * (mapSize - 10000);
             bot.position.set(bx, 10, bz);
             
-            let botData = { mesh: bot, speed: 70 + Math.random() * 50, dirX: Math.random() > 0.5 ? 1 : 0, dirZ: Math.random() > 0.5 ? 0 : 1, radius: 90 };
+            let botData = { mesh: bot, visualGroup: defaultVisual, speed: 70 + Math.random() * 50, dirX: Math.random() > 0.5 ? 1 : 0, dirZ: Math.random() > 0.5 ? 0 : 1, radius: 90 };
             if(botData.dirX === 0 && botData.dirZ === 0) botData.dirZ = 1;
             
             trafficGroup.add(bot); 
@@ -478,6 +491,61 @@
                 });
             };
             reader.readAsArrayBuffer(file);
+        });
+
+        document.getElementById('bot-file-input').addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            const botStatusDiv = document.getElementById('bot-file-status');
+            if (files.length === 0) return;
+
+            botStatusDiv.style.color = "orange";
+            botStatusDiv.innerText = `${files.length}/18 model işleniyor...`;
+
+            customBotScenes = [];
+            let loadedCount = 0;
+
+            files.forEach((file) => {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const loader = new THREE.GLTFLoader();
+                    loader.parse(event.target.result, '', function(gltf) {
+                        const modelScene = gltf.scene;
+                        modelScene.traverse((child) => {
+                            if (child.isMesh) {
+                                child.castShadow = true;
+                                child.receiveShadow = true;
+                            }
+                        });
+
+                        const box = new THREE.Box3().setFromObject(modelScene);
+                        const center = box.getCenter(new THREE.Vector3());
+                        const size = box.getSize(new THREE.Vector3());
+                        modelScene.position.sub(center);
+                        const maxDim = Math.max(size.x, size.y, size.z) || 1;
+                        const scaleFactor = (160.0 / maxDim) * 1.4;
+                        modelScene.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                        modelScene.position.y = size.y * scaleFactor * 0.35;
+
+                        customBotScenes.push(modelScene);
+                        loadedCount++;
+
+                        if (customBotScenes.length <= 18) {
+                            botCars.forEach(bot => {
+                                bot.mesh.remove(bot.visualGroup);
+                                let randomSceneClone = customBotScenes[Math.floor(Math.random() * customBotScenes.length)].clone();
+                                bot.mesh.add(randomSceneClone);
+                                bot.visualGroup = randomSceneClone;
+                            });
+
+                            botStatusDiv.style.color = "green";
+                            botStatusDiv.innerText = `${customBotScenes.length} Model Aktif! ✔`;
+                        }
+                    }, undefined, function(err) {
+                        console.error("Bot model yükleme hatası", err);
+                    });
+                };
+                reader.readAsArrayBuffer(file);
+            });
         });
 
         let carPhysics = { speed: 0, maxSpeed: 800, maxReverseSpeed: -70, acceleration: 1.5, deceleration: 0.3, braking: 10.0, angle: 0, radius: 150 };
@@ -639,7 +707,6 @@
                 else if (carPhysics.speed < 0) carPhysics.speed = Math.min(carPhysics.speed + carPhysics.deceleration, 0);
             }
 
-            // Motor Sesini Güncelle
             updateEngineSound(carPhysics.speed, isAccelerating);
 
             if (Math.abs(carPhysics.speed) > 0.1) {
