@@ -1,7 +1,7 @@
-
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
+ <link rel="icon" href="favicon0.png" type="image/png">
  <meta name="google-site-verification" content="kLCS6z8Lb3jZLTBq6-TJDJSFEFtRTSW3B3IMBYlx5wo" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -249,6 +249,40 @@
             return 0;
         }
 
+        // Araçların yola/engebelere tam oturması (eğim hesaplama) için yardımcı fonksiyon
+        function alignCarToTerrain(carObj, posX, posZ, angle, length = 80, width = 50) {
+            let halfL = length / 2;
+            let halfW = width / 2;
+
+            // Ön, arka, sağ ve sol noktaların dünya koordinatlarındaki yüksekliklerini bulalım
+            let fX = posX + Math.sin(angle) * halfL;
+            let fZ = posZ + Math.cos(angle) * halfL;
+            let bX = posX - Math.sin(angle) * halfL;
+            let bZ = posZ - Math.cos(angle) * halfL;
+
+            let rX = posX + Math.cos(angle) * halfW;
+            let rZ = posZ - Math.sin(angle) * halfW;
+            let lX = posX - Math.cos(angle) * halfW;
+            let lZ = posZ + Math.sin(angle) * halfW;
+
+            let fY = getTerrainHeight(fX, fZ);
+            let bY = getTerrainHeight(bX, bZ);
+            let rY = getTerrainHeight(rX, rZ);
+            let lY = getTerrainHeight(lX, lZ);
+
+            let centerPosY = (fY + bY) / 2;
+            carObj.position.set(posX, centerPosY, posZ);
+
+            // Eğim açıları (Pitch ve Roll hesaplaması)
+            let pitch = Math.atan2(fY - bY, length);
+            let roll = Math.atan2(rY - lY, width);
+
+            carObj.rotation.set(0, 0, 0);
+            carObj.rotation.y = angle;
+            carObj.rotation.x = pitch;
+            carObj.rotation.z = roll;
+        }
+
         function createBuildingTexture() {
             const canvas = document.createElement('canvas');
             canvas.width = 256; 
@@ -417,7 +451,7 @@
             let bz = (Math.random() - 0.5) * (mapSize - 10000);
             bot.position.set(bx, 10, bz);
             
-            let botData = { mesh: bot, visualGroup: defaultVisual, speed: 70 + Math.random() * 50, dirX: Math.random() > 0.5 ? 1 : 0, dirZ: Math.random() > 0.5 ? 0 : 1, radius: 90 };
+            let botData = { mesh: bot, visualGroup: defaultVisual, speed: 70 + Math.random() * 50, dirX: Math.random() > 0.5 ? 1 : 0, dirZ: Math.random() > 0.5 ? 0 : 1, radius: 90, angle: 0 };
             if(botData.dirX === 0 && botData.dirZ === 0) botData.dirZ = 1;
             
             trafficGroup.add(bot); 
@@ -726,9 +760,10 @@
                 carPhysics.speed = -carPhysics.speed * 0.3; 
             }
 
-            car.rotation.y = carPhysics.angle; 
-            car.position.y = getTerrainHeight(car.position.x, car.position.z);
+            // Oyuncu aracını yola ve engebelere tam oturtuyoruz (Eğim uyarlaması)
+            alignCarToTerrain(car, car.position.x, car.position.z, carPhysics.angle, 160, 115);
 
+            // Bot arabaların hareketi ve yola tam oturması (Eğim uyarlaması)
             botCars.forEach(bot => {
                 let nextBotX = bot.mesh.position.x + bot.dirX * bot.speed * delta * 5;
                 let nextBotZ = bot.mesh.position.z + bot.dirZ * bot.speed * delta * 5;
@@ -739,7 +774,9 @@
                     bot.dirX = -bot.dirX; 
                     bot.dirZ = -bot.dirZ; 
                 }
-                bot.mesh.position.y = getTerrainHeight(bot.mesh.position.x, bot.mesh.position.z);
+                // Botun yön açısını hesapla ve araziye göre eğim ver
+                bot.angle = Math.atan2(bot.dirX, bot.dirZ);
+                alignCarToTerrain(bot.mesh, bot.mesh.position.x, bot.mesh.position.z, bot.angle, 160, 120);
             });
 
             const displaySpeed = Math.round((Math.abs(carPhysics.speed) / 800) * 240);
