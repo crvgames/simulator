@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
- <link rel="icon" href="favicon0.png" type="image/png">
- <meta name="google-site-verification" content="kLCS6z8Lb3jZLTBq6-TJDJSFEFtRTSW3B3IMBYlx5wo" />
+    <meta name="google-site-verification" content="kLCS6z8Lb3jZLTBq6-TJDJSFEFtRTSW3B3IMBYlx5wo" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CRV GAMES 3D Araba Simulator</title>
+    <title>CRV GAMES 3D Şehir Simülatörü</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body { margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background-color: #aaccff; touch-action: manipulation; }
@@ -37,15 +36,35 @@
         #minimap-container { position: absolute; bottom: 20px; left: 20px; width: 140px; height: 140px; background: rgba(0,0,0,0.7); border: 3px solid #ffcc00; border-radius: 12px; overflow: hidden; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         #minimap-canvas { width: 100%; height: 100%; display: block; }
 
-        #controls { position: absolute; top: 20px; right: 20px; color: #333; background: rgba(255, 255, 255, 0.9); padding: 12px; border-radius: 12px; font-size: 12px; border: 1px solid #ccc; box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 1000; max-width: 220px; }
+        #controls { position: absolute; top: 20px; right: 20px; color: #333; background: rgba(255, 255, 255, 0.9); padding: 12px; border-radius: 12px; font-size: 12px; border: 1px solid #ccc; box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 1000; max-width: 240px; }
         .key { background: #eee; padding: 2px 5px; border-radius: 4px; border: 1px solid #ccc; font-weight: bold; color: #333; }
+
+        /* Arayüz Bildirimi */
+        #prompt-msg {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border: 2px solid #ffcc00;
+            z-index: 2000;
+            display: none;
+            pointer-events: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            text-align: center;
+        }
 
         /* MOBİL KONTROL ARAYÜZÜ */
         .mobile-btn-group { position: absolute; z-index: 9999; display: flex; gap: 15px; pointer-events: auto; }
         
         #mobile-steering { bottom: 30px; left: 180px; }
         #mobile-pedals { bottom: 30px; right: 20px; flex-direction: column; align-items: flex-end; gap: 12px; }
-        #mobile-actions { top: 20px; left: 50%; transform: translateX(-50%); gap: 12px; }
+        #mobile-actions { top: 20px; left: 50%; transform: translateX(-50%); gap: 10px; }
 
         .m-btn {
           background: rgba(255, 255, 255, 0.85);
@@ -69,7 +88,7 @@
         .btn-steer { width: 70px; height: 70px; font-size: 28px; border-radius: 50%; }
         .btn-pedal-gas { width: 80px; height: 90px; background: rgba(76, 175, 80, 0.85); border-color: #2e7d32; color: #fff; font-size: 16px; border-radius: 18px; }
         .btn-pedal-brake { width: 80px; height: 60px; background: rgba(244, 67, 54, 0.85); border-color: #c62828; color: #fff; font-size: 15px; border-radius: 14px; }
-        .btn-action { width: 50px; height: 50px; font-size: 20px; border-radius: 12px; background: rgba(255,255,255,0.9); }
+        .btn-action { width: 50px; height: 50px; font-size: 18px; border-radius: 12px; background: rgba(255,255,255,0.9); }
 
         @media (max-width: 768px) {
           #controls { display: none; }
@@ -78,6 +97,8 @@
     </style>
 </head>
 <body>
+    <div id="prompt-msg">Kapıya Yaklaştınız: B ile Gir / I ile Çık</div>
+
     <div id="upload-panel">
         <b style="color: #b38600;">🚖 MODELLER</b><br>
         <span style="font-size:10px; color:#555;">Oyuncu Arabası:</span>
@@ -117,15 +138,15 @@
     </div>
 
     <div id="controls">
-        <p style="margin-top:0; font-weight:bold; color:#e69900; font-size:13px; border-bottom:1px solid #ddd; padding-bottom:5px;">ARABA SÜRÜŞÜ</p>
-        <p><span class="key">W</span> / <span class="key">▲</span> Gaz Ver</p>
-        <p><span class="key">S</span> / <span class="key">▼</span> Fren / Geri</p>
-        <p><span class="key">A</span> / <span class="key">◄</span> Sol | <span class="key">D</span> / <span class="key">►</span> Sağ</p>
-        <p><span class="key">C</span> Kamera Değiştir (4 Açı)</p>
-        <p><span class="key">R</span> Aracı Sıfırla (Reset)</p>
-        <p style="color:#009933; font-weight:bold; margin-bottom:0;">⛽ Yeşil alanlarda benzin dolup sıfırlanır.</p>
-     <p style="color:#009933; font-weight:bold; margin-bottom:0;">İPUCU arabanın yola tutunma hassasiyeti en iyi 
-60 km/h-100 km/h arasında olur.</p>
+        <p style="margin-top:0; font-weight:bold; color:#e69900; font-size:13px; border-bottom:1px solid #ddd; padding-bottom:5px;">SEHIR SIMULATORU KONTROLLERI</p>
+        <p><span class="key">W</span> / <span class="key">S</span> / <span class="key">A</span> / <span class="key">D</span> Yaya Hareket</p>
+        <p><span class="key">B</span> Arabaya Bin / Binaya Gir</p>
+        <p><span class="key">I</span> Arabadan In / Binadan Çık</p>
+        <p><span class="key">Mouse Sol Tık</span> Ekranı Sürükleyip Kamerayi çevir</p>
+        <p><span class="key">C</span> Kamera Degistir</p>
+        <p><span class="key">R</span> Konumu Sifirla</p>
+        <p style="color:#009933; font-weight:bold; margin-bottom:0;">🚶 Ekran Buton Kontrolü Aktif!</p>
+        <p style="color:#009933; font-weight:bold; margin-bottom:0;">Benzin haritada yeşil noktalardan alınır</p>
     </div>
 
     <div class="mobile-btn-group" id="mobile-steering">
@@ -134,11 +155,12 @@
     </div>
 
     <div class="mobile-btn-group" id="mobile-pedals">
-        <div class="m-btn btn-pedal-gas" id="btn-gas">GAZ</div>
-        <div class="m-btn btn-pedal-brake" id="btn-brake">FREN</div>
+        <div class="m-btn btn-pedal-gas" id="btn-gas">GAZ / İLERİ</div>
+        <div class="m-btn btn-pedal-brake" id="btn-brake">FREN / GERİ</div>
     </div>
 
     <div class="mobile-btn-group" id="mobile-actions">
+        <div class="m-btn btn-action" id="btn-exit" title="İn/Bin/Giriş">🚪 İN/BİN</div>
         <div class="m-btn btn-action" id="btn-cam" title="Kamera">📷</div>
         <div class="m-btn btn-action" id="btn-reset" title="Sıfırla">🔄</div>
     </div>
@@ -175,7 +197,7 @@
 
         function updateEngineSound(speed, isAccelerating) {
             if (!audioCtx) return;
-            if (currentEngine === 'off') {
+            if (currentEngine === 'off' || !inCar) {
                 gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
                 return;
             }
@@ -234,6 +256,8 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         container.appendChild(renderer.domElement);
 
+        window.addEventListener('contextmenu', e => e.preventDefault());
+
         const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
         scene.add(ambientLight);
         
@@ -251,12 +275,10 @@
             return 0;
         }
 
-        // Araçların yola/engebelere tam oturması (eğim hesaplama) için yardımcı fonksiyon
-        function alignCarToTerrain(carObj, posX, posZ, angle, length = 80, width = 50) {
+        function alignObjToTerrain(obj, posX, posZ, angle, length = 40, width = 40) {
             let halfL = length / 2;
             let halfW = width / 2;
 
-            // Ön, arka, sağ ve sol noktaların dünya koordinatlarındaki yüksekliklerini bulalım
             let fX = posX + Math.sin(angle) * halfL;
             let fZ = posZ + Math.cos(angle) * halfL;
             let bX = posX - Math.sin(angle) * halfL;
@@ -273,16 +295,15 @@
             let lY = getTerrainHeight(lX, lZ);
 
             let centerPosY = (fY + bY) / 2;
-            carObj.position.set(posX, centerPosY, posZ);
+            obj.position.set(posX, centerPosY, posZ);
 
-            // Eğim açıları (Pitch ve Roll hesaplaması)
             let pitch = Math.atan2(fY - bY, length);
             let roll = Math.atan2(rY - lY, width);
 
-            carObj.rotation.set(0, 0, 0);
-            carObj.rotation.y = angle;
-            carObj.rotation.x = pitch;
-            carObj.rotation.z = roll;
+            obj.rotation.set(0, 0, 0);
+            obj.rotation.y = angle;
+            obj.rotation.x = pitch;
+            obj.rotation.z = roll;
         }
 
         function createBuildingTexture() {
@@ -337,12 +358,116 @@
         const groundMesh = new THREE.Mesh(groundGeo, new THREE.MeshBasicMaterial({ map: texture }));
         scene.add(groundMesh);
 
+        /* ===== INSAN (YAYA / OYUNCU) MODELLERI OLUSTURMA ===== */
+        function createHumanCharacter(isPlayer = false, skinColorHex = 0xffdbac, shirtColorHex = 0x1e88e5) {
+            const human = new THREE.Group();
+            
+            const skinMat = new THREE.MeshStandardMaterial({ color: skinColorHex, roughness: 0.6 });
+            const shirtMat = new THREE.MeshStandardMaterial({ color: shirtColorHex, roughness: 0.5 });
+            const pantsMat = new THREE.MeshStandardMaterial({ color: isPlayer ? 0x222222 : 0x333344, roughness: 0.7 });
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+            const whiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(16, 26, 10), shirtMat);
+            torso.position.y = 33;
+            human.add(torso);
+
+            const head = new THREE.Mesh(new THREE.BoxGeometry(12, 12, 12), skinMat);
+            head.position.y = 52;
+            human.add(head);
+
+            const eyeL_white = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.5, 1), whiteMat);
+            eyeL_white.position.set(-3, 53, 6.1);
+            const eyeR_white = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.5, 1), whiteMat);
+            eyeR_white.position.set(3, 53, 6.1);
+
+            const eyeL = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.1), eyeMat);
+            eyeL.position.set(-3, 53, 6.2);
+            const eyeR = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.1), eyeMat);
+            eyeR.position.set(3, 53, 6.2);
+
+            human.add(eyeL_white, eyeR_white, eyeL, eyeR);
+
+            const leftArmGroup = new THREE.Group();
+            leftArmGroup.position.set(-10, 44, 0);
+            const leftArm = new THREE.Mesh(new THREE.BoxGeometry(4.5, 22, 4.5), skinMat);
+            leftArm.position.y = -11;
+            leftArmGroup.add(leftArm);
+            human.add(leftArmGroup);
+
+            const rightArmGroup = new THREE.Group();
+            rightArmGroup.position.set(10, 44, 0);
+            const rightArm = new THREE.Mesh(new THREE.BoxGeometry(4.5, 22, 4.5), skinMat);
+            rightArm.position.y = -11;
+            rightArmGroup.add(rightArm);
+            human.add(rightArmGroup);
+
+            const leftLegGroup = new THREE.Group();
+            leftLegGroup.position.set(-4.5, 20, 0);
+            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(5.5, 20, 5.5), pantsMat);
+            leftLeg.position.y = -10;
+            leftLegGroup.add(leftLeg);
+            human.add(leftLegGroup);
+
+            const rightLegGroup = new THREE.Group();
+            rightLegGroup.position.set(4.5, 20, 0);
+            const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(5.5, 20, 5.5), pantsMat);
+            rightLeg.position.y = -10;
+            rightLegGroup.add(rightLeg);
+            human.add(rightLegGroup);
+
+            return {
+                mesh: human,
+                leftArm: leftArmGroup,
+                rightArm: rightArmGroup,
+                leftLeg: leftLegGroup,
+                rightLeg: rightLegGroup,
+                head: head,
+                animTimer: Math.random() * 10
+            };
+        }
+
+        const playerChar = createHumanCharacter(true, 0xffcd94, 0xe53935);
+        playerChar.mesh.visible = false;
+        scene.add(playerChar.mesh);
+
+        const pedestrians = [];
+        const pedGroup = new THREE.Group();
+        const skinColors = [0xffdbac, 0xf1c27d, 0xe0ac69, 0x8d5524, 0xc68642];
+        const shirtColors = [0x3388ff, 0x44bb44, 0xeb4034, 0xf4b400, 0x9c27b0, 0x333333];
+
+        for (let i = 0; i < 120; i++) {
+            let sk = skinColors[Math.floor(Math.random() * skinColors.length)];
+            let sh = shirtColors[Math.floor(Math.random() * shirtColors.length)];
+            let ped = createHumanCharacter(false, sk, sh);
+            
+            let px = (Math.random() - 0.5) * (mapSize - 15000);
+            let pz = (Math.random() - 0.5) * (mapSize - 15000);
+            ped.mesh.position.set(px, getTerrainHeight(px, pz), pz);
+
+            pedestrians.push({
+                charData: ped,
+                speed: 15 + Math.random() * 15,
+                angle: Math.random() * Math.PI * 2,
+                changeDirTimer: Math.random() * 5
+            });
+            pedGroup.add(ped.mesh);
+        }
+        scene.add(pedGroup);
+
+        /* ===== BINALAR VE KAPILAR ===== */
         const buildings = [];
         const buildingGroup = new THREE.Group();
         const bGeo = new THREE.BoxGeometry(1, 1, 1);
         const bMat = new THREE.MeshStandardMaterial({ map: buildingTexture, roughness: 0.5 });
-        
-        for(let i = 0; i < 1000; i++) {
+        const doorMat = new THREE.MeshStandardMaterial({ color: 0x4a2e10, roughness: 0.3 });
+        const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0xffcc00 });
+
+        const indoorGroup = new THREE.Group();
+        const indoorMat = new THREE.MeshStandardMaterial({ color: 0x151522, side: THREE.BackSide });
+        const indoorLight = new THREE.PointLight(0xffaa44, 2, 300);
+
+        for(let i = 0; i < 800; i++) {
             const h = 400 + Math.random() * 900; 
             const w = 300 + Math.random() * 150; 
             const d = 300 + Math.random() * 150;
@@ -358,10 +483,33 @@
             let groundY = getTerrainHeight(x, z);
             building.position.set(x, groundY + h/2, z);
             buildingGroup.add(building);
-            buildings.push({ box: new THREE.Box3().setFromObject(building), x: x, z: z, w: w, d: d });
+
+            const doorGroup = new THREE.Group();
+            const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(32, 50, 4), doorMat);
+            doorMesh.position.set(0, 25, d/2 + 2);
+            const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(38, 54, 2), doorFrameMat);
+            doorFrame.position.set(0, 27, d/2 + 1);
+            doorGroup.add(doorFrame, doorMesh);
+            doorGroup.position.set(x, groundY, z);
+            buildingGroup.add(doorGroup);
+
+            let doorWorldPos = new THREE.Vector3(x, groundY + 15, z + d/2 + 15);
+
+            buildings.push({ 
+                box: new THREE.Box3().setFromObject(building), 
+                x: x, z: z, w: w, d: d, h: h,
+                doorPos: doorWorldPos,
+                insidePos: new THREE.Vector3(x, groundY + 20, z)
+            });
         }
         scene.add(buildingGroup);
 
+        const interiorRoom = new THREE.Mesh(new THREE.BoxGeometry(180, 100, 180), indoorMat);
+        indoorGroup.add(interiorRoom, indoorLight);
+        indoorGroup.visible = false;
+        scene.add(indoorGroup);
+
+        /* ===== BENZINLIKLER ===== */
         const gasStations = [];
         const gasStationGroup = new THREE.Group();
 
@@ -399,6 +547,7 @@
         gasCoords.forEach(c => createGasStation(c.x, c.z));
         scene.add(gasStationGroup);
 
+        /* ===== ARACLAR & TRAFIK ===== */
         const carW = 120; 
         const carH = 65; 
         const carL = 160;
@@ -520,10 +669,10 @@
                     
                     car.add(currentCarVisual);
                     statusDiv.style.color = "green"; 
-                    statusDiv.innerText = "Yüklendi! ✔";
+                    statusDiv.innerText = "Yuklendi! ✔";
                 }, function(err) { 
                     statusDiv.style.color = "red"; 
-                    statusDiv.innerText = "Yükleme hatası."; 
+                    statusDiv.innerText = "Yukleme hatasi."; 
                 });
             };
             reader.readAsArrayBuffer(file);
@@ -538,7 +687,6 @@
             botStatusDiv.innerText = `${files.length}/18 model işleniyor...`;
 
             customBotScenes = [];
-            let loadedCount = 0;
 
             files.forEach((file) => {
                 const reader = new FileReader();
@@ -563,7 +711,6 @@
                         modelScene.position.y = size.y * scaleFactor * 0.35;
 
                         customBotScenes.push(modelScene);
-                        loadedCount++;
 
                         if (customBotScenes.length <= 18) {
                             botCars.forEach(bot => {
@@ -584,27 +731,144 @@
             });
         });
 
+        /* ===== OYUNCU MODLARI & FIZIK SISTEMI ===== */
+        let inCar = true; 
+        let isInsideBuilding = false;
+        let currentBuildingInside = null;
+
         let carPhysics = { speed: 0, maxSpeed: 800, maxReverseSpeed: -70, acceleration: 1.5, deceleration: 0.3, braking: 10.0, angle: 0, radius: 150 };
+        let playerPhysics = { posX: 0, posZ: 0, posY: 0, angle: 0, speed: 180 };
         let fuel = 100;
         
+        let cameraYaw = 0;
+        let cameraPitch = 0.3;
+        let isMouseDown = false;
+        let previousMouseX = 0;
+        let previousMouseY = 0;
+
         const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
         let cameraMode = 0;
 
+        // MOUSE / TOUCH YAYA KAMERA DONDURME
+        window.addEventListener('mousedown', (e) => {
+            if (e.target.closest('#upload-panel, #audio-panel, .mobile-btn-group')) return;
+            isMouseDown = true;
+            previousMouseX = e.clientX;
+            previousMouseY = e.clientY;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isMouseDown) return;
+            let deltaX = e.clientX - previousMouseX;
+            let deltaY = e.clientY - previousMouseY;
+
+            cameraYaw -= deltaX * 0.005;
+            cameraPitch = Math.max(0.05, Math.min(Math.PI / 2.2, cameraPitch + deltaY * 0.005));
+
+            previousMouseX = e.clientX;
+            previousMouseY = e.clientY;
+        });
+
+        window.addEventListener('mouseup', () => isMouseDown = false);
+
+        function exitCar() {
+            if (!inCar) return;
+            inCar = false;
+            playerPhysics.posX = car.position.x + Math.cos(carPhysics.angle) * 100;
+            playerPhysics.posZ = car.position.z - Math.sin(carPhysics.angle) * 100;
+            playerPhysics.angle = carPhysics.angle;
+            playerChar.mesh.visible = true;
+            cameraYaw = carPhysics.angle;
+        }
+
+        function enterCar() {
+            if (inCar || isInsideBuilding) return;
+            let distToCar = Math.hypot(playerPhysics.posX - car.position.x, playerPhysics.posZ - car.position.z);
+            if (distToCar < 250) {
+                inCar = true;
+                playerChar.mesh.visible = false;
+            }
+        }
+
+        function enterBuilding() {
+            if (inCar || isInsideBuilding) return;
+            for (let i = 0; i < buildings.length; i++) {
+                let b = buildings[i];
+                let distToDoor = Math.hypot(playerPhysics.posX - b.doorPos.x, playerPhysics.posZ - b.doorPos.z);
+                if (distToDoor < 120) {
+                    isInsideBuilding = true;
+                    currentBuildingInside = b;
+                    indoorGroup.position.copy(b.insidePos);
+                    indoorGroup.visible = true;
+                    playerPhysics.posX = b.insidePos.x;
+                    playerPhysics.posZ = b.insidePos.z + 40;
+                    break;
+                }
+            }
+        }
+
+        function exitBuilding() {
+            if (!isInsideBuilding) return;
+            isInsideBuilding = false;
+            if (currentBuildingInside) {
+                playerPhysics.posX = currentBuildingInside.doorPos.x;
+                playerPhysics.posZ = currentBuildingInside.doorPos.z;
+            }
+            indoorGroup.visible = false;
+            currentBuildingInside = null;
+            document.getElementById('prompt-msg').style.display = 'none';
+        }
+
         window.addEventListener('keydown', (e) => {
-            if(e.key in keys) keys[e.key] = true;
-            if(e.key.toLowerCase() === 'c') cameraMode = (cameraMode + 1) % 4;
-            if(e.key.toLowerCase() === 'r') resetCar();
+            let keyLower = e.key.toLowerCase();
+            if (e.key in keys) keys[e.key] = true;
+            if (keyLower === 'w') keys.w = true;
+            if (keyLower === 's') keys.s = true;
+            if (keyLower === 'a') keys.a = true;
+            if (keyLower === 'd') keys.d = true;
+
+            if (keyLower === 'b') {
+                if (!inCar && !isInsideBuilding) {
+                    let nearDoor = false;
+                    for (let i = 0; i < buildings.length; i++) {
+                        if (Math.hypot(playerPhysics.posX - buildings[i].doorPos.x, playerPhysics.posZ - buildings[i].doorPos.z) < 120) {
+                            nearDoor = true;
+                            break;
+                        }
+                    }
+                    if (nearDoor) enterBuilding();
+                    else enterCar();
+                }
+            }
+
+            if (keyLower === 'i') {
+                if (isInsideBuilding) exitBuilding();
+                else if (inCar) exitCar();
+            }
+
+            if (keyLower === 'c') cameraMode = (cameraMode + 1) % 4;
+            if (keyLower === 'r') resetCar();
         });
         
         window.addEventListener('keyup', (e) => { 
-            if(e.key in keys) keys[e.key] = false; 
+            let keyLower = e.key.toLowerCase();
+            if (e.key in keys) keys[e.key] = false; 
+            if (keyLower === 'w') keys.w = false;
+            if (keyLower === 's') keys.s = false;
+            if (keyLower === 'a') keys.a = false;
+            if (keyLower === 'd') keys.d = false;
         });
 
         function resetCar() {
-            car.position.set(0, 10, 0);
-            carPhysics.speed = 0;
-            carPhysics.angle = 0;
-            fuel = 100;
+            if (inCar) {
+                car.position.set(0, 10, 0);
+                carPhysics.speed = 0;
+                carPhysics.angle = 0;
+                fuel = 100;
+            } else {
+                playerPhysics.posX = car.position.x + 80;
+                playerPhysics.posZ = car.position.z;
+            }
         }
 
         function bindTouchControl(elementId, actionStart, actionEnd) {
@@ -619,16 +883,28 @@
             btn.addEventListener('mouseleave', actionEnd);
         }
 
-        bindTouchControl('btn-gas', () => keys.w = true, () => keys.w = false);
-        bindTouchControl('btn-brake', () => keys.s = true, () => keys.s = false);
-        bindTouchControl('btn-left', () => keys.a = true, () => keys.a = false);
-        bindTouchControl('btn-right', () => keys.d = true, () => keys.d = false);
+        bindTouchControl('btn-gas', () => { keys.w = true; keys.ArrowUp = true; }, () => { keys.w = false; keys.ArrowUp = false; });
+        bindTouchControl('btn-brake', () => { keys.s = true; keys.ArrowDown = true; }, () => { keys.s = false; keys.ArrowDown = false; });
+        bindTouchControl('btn-left', () => { keys.a = true; keys.ArrowLeft = true; }, () => { keys.a = false; keys.ArrowLeft = false; });
+        bindTouchControl('btn-right', () => { keys.d = true; keys.ArrowRight = true; }, () => { keys.d = false; keys.ArrowRight = false; });
 
+        document.getElementById('btn-exit').addEventListener('click', () => {
+            if (isInsideBuilding) exitBuilding();
+            else if (inCar) exitCar();
+            else {
+                let nearDoor = false;
+                for (let i = 0; i < buildings.length; i++) {
+                    if (Math.hypot(playerPhysics.posX - buildings[i].doorPos.x, playerPhysics.posZ - buildings[i].doorPos.z) < 120) {
+                        nearDoor = true;
+                        break;
+                    }
+                }
+                if (nearDoor) enterBuilding();
+                else enterCar();
+            }
+        });
         document.getElementById('btn-cam').addEventListener('click', () => cameraMode = (cameraMode + 1) % 4);
-        document.getElementById('btn-cam').addEventListener('touchstart', (e) => { e.preventDefault(); cameraMode = (cameraMode + 1) % 4; }, { passive: false });
-
         document.getElementById('btn-reset').addEventListener('click', resetCar);
-        document.getElementById('btn-reset').addEventListener('touchstart', (e) => { e.preventDefault(); resetCar(); }, { passive: false });
 
         function checkBuildingCollision(nextX, nextZ, radius) {
             for (let i = 0; i < buildings.length; i++) {
@@ -645,7 +921,7 @@
                 let bot = botCars[i];
                 let dx = nextX - bot.mesh.position.x;
                 let dz = nextZ - bot.mesh.position.z;
-                let distance = Math.sqrt(dx * dx + dz * dz);
+                let distance = Math.hypot(dx, dz);
                 if (distance < (carPhysics.radius + bot.radius)) {
                     bot.mesh.position.x += Math.sin(carPhysics.angle) * carPhysics.speed * 0.50;
                     bot.mesh.position.z += Math.cos(carPhysics.angle) * carPhysics.speed * 0.50;
@@ -660,12 +936,28 @@
                 let gs = gasStations[i];
                 let dx = car.position.x - gs.x;
                 let dz = car.position.z - gs.z;
-                if (Math.sqrt(dx * dx + dz * dz) < gs.radius) {
+                if (Math.hypot(dx, dz) < gs.radius) {
                     fuel = Math.min(100, fuel + 0.8);
                     return true;
                 }
             }
             return false;
+        }
+
+        function animateHuman(charObj, isMoving, delta) {
+            if (isMoving) {
+                charObj.animTimer += delta * 12;
+                let swing = Math.sin(charObj.animTimer) * 0.65;
+                charObj.leftArm.rotation.x = swing;
+                charObj.rightArm.rotation.x = -swing;
+                charObj.leftLeg.rotation.x = -swing;
+                charObj.rightLeg.rotation.x = swing;
+            } else {
+                charObj.leftArm.rotation.x = 0;
+                charObj.rightArm.rotation.x = 0;
+                charObj.leftLeg.rotation.x = 0;
+                charObj.rightLeg.rotation.x = 0;
+            }
         }
 
         const minimapCanvas = document.getElementById('minimap-canvas');
@@ -680,11 +972,13 @@
             const mapScale = 0.015;
             const centerX = 70;
             const centerY = 70;
+            let targetX = inCar ? car.position.x : playerPhysics.posX;
+            let targetZ = inCar ? car.position.z : playerPhysics.posZ;
 
             mCtx.fillStyle = '#555566';
             buildings.forEach(b => {
-                let relX = (b.x - car.position.x) * mapScale;
-                let relZ = (b.z - car.position.z) * mapScale;
+                let relX = (b.x - targetX) * mapScale;
+                let relZ = (b.z - targetZ) * mapScale;
                 if (Math.abs(relX) < 70 && Math.abs(relZ) < 70) {
                     mCtx.fillRect(centerX + relX - (b.w * mapScale)/2, centerY + relZ - (b.d * mapScale)/2, b.w * mapScale, b.d * mapScale);
                 }
@@ -692,8 +986,8 @@
 
             mCtx.fillStyle = '#00ff44';
             gasStations.forEach(gs => {
-                let relX = (gs.x - car.position.x) * mapScale;
-                let relZ = (gs.z - car.position.z) * mapScale;
+                let relX = (gs.x - targetX) * mapScale;
+                let relZ = (gs.z - targetZ) * mapScale;
                 if (Math.abs(relX) < 70 && Math.abs(relZ) < 70) {
                     mCtx.beginPath();
                     mCtx.arc(centerX + relX, centerY + relZ, 5, 0, Math.PI * 2);
@@ -703,8 +997,8 @@
 
             mCtx.save();
             mCtx.translate(centerX, centerY);
-            mCtx.rotate(-carPhysics.angle);
-            mCtx.fillStyle = '#ff3333';
+            mCtx.rotate(inCar ? -carPhysics.angle : -playerPhysics.angle);
+            mCtx.fillStyle = inCar ? '#ff3333' : '#00ccff';
             mCtx.beginPath();
             mCtx.moveTo(0, 8);
             mCtx.lineTo(5, -6);
@@ -718,54 +1012,141 @@
         const speedDigital = document.getElementById('speed-digital');
         const gearBox = document.getElementById('gear-box');
         const fuelGaugeFill = document.getElementById('fuel-gauge-fill');
+        const promptMsg = document.getElementById('prompt-msg');
         const clock = new THREE.Clock();
 
         function animate() {
             requestAnimationFrame(animate);
             const delta = Math.min(clock.getDelta(), 0.1);
 
-            const isRefilling = checkFuelRefill();
-            const canAccelerate = fuel > 0;
-            let isAccelerating = false;
+            if (inCar) {
+                const isRefilling = checkFuelRefill();
+                const canAccelerate = fuel > 0;
+                let isAccelerating = false;
 
-            if ((keys.w || keys.ArrowUp) && canAccelerate) {
-                if (carPhysics.speed < 0) carPhysics.speed += carPhysics.braking;
-                else carPhysics.speed = Math.min(carPhysics.speed + carPhysics.acceleration, carPhysics.maxSpeed);
-                fuel = Math.max(0, fuel - 0.025);
-                isAccelerating = true;
-            } else if (keys.s || keys.ArrowDown) {
-                if (carPhysics.speed > 0) carPhysics.speed -= carPhysics.braking;
-                else if (canAccelerate) carPhysics.speed = Math.max(carPhysics.speed - carPhysics.acceleration, carPhysics.maxReverseSpeed);
-                if (canAccelerate) fuel = Math.max(0, fuel - 0.02);
-                isAccelerating = true;
+                if ((keys.w || keys.ArrowUp) && canAccelerate) {
+                    if (carPhysics.speed < 0) carPhysics.speed += carPhysics.braking;
+                    else carPhysics.speed = Math.min(carPhysics.speed + carPhysics.acceleration, carPhysics.maxSpeed);
+                    fuel = Math.max(0, fuel - 0.025);
+                    isAccelerating = true;
+                } else if (keys.s || keys.ArrowDown) {
+                    if (carPhysics.speed > 0) carPhysics.speed -= carPhysics.braking;
+                    else if (canAccelerate) carPhysics.speed = Math.max(carPhysics.speed - carPhysics.acceleration, carPhysics.maxReverseSpeed);
+                    if (canAccelerate) fuel = Math.max(0, fuel - 0.02);
+                    isAccelerating = true;
+                } else {
+                    if (carPhysics.speed > 0) carPhysics.speed = Math.max(carPhysics.speed - carPhysics.deceleration, 0);
+                    else if (carPhysics.speed < 0) carPhysics.speed = Math.min(carPhysics.speed + carPhysics.deceleration, 0);
+                }
+
+                updateEngineSound(carPhysics.speed, isAccelerating);
+
+                if (Math.abs(carPhysics.speed) > 0.1) {
+                    const speedFactor = Math.min(Math.abs(carPhysics.speed) / 800, 1.0);
+                    const direction = carPhysics.speed > 0 ? 1 : -1;
+                    if (keys.a || keys.ArrowLeft) carPhysics.angle += 0.06 * speedFactor * direction;
+                    if (keys.d || keys.ArrowRight) carPhysics.angle -= 0.06 * speedFactor * direction;
+                }
+
+                let nextX = car.position.x + Math.sin(carPhysics.angle) * carPhysics.speed * delta * 5.5;
+                let nextZ = car.position.z + Math.cos(carPhysics.angle) * carPhysics.speed * delta * 5.5;
+                
+                if (!checkBuildingCollision(nextX, nextZ, carPhysics.radius) && !checkCarToBotCollisions(nextX, nextZ)) {
+                    car.position.x = nextX; 
+                    car.position.z = nextZ;
+                } else { 
+                    carPhysics.speed = -carPhysics.speed * 0.3; 
+                }
+
+                alignObjToTerrain(car, car.position.x, car.position.z, carPhysics.angle, 160, 115);
+                promptMsg.style.display = 'none';
+
             } else {
-                if (carPhysics.speed > 0) carPhysics.speed = Math.max(carPhysics.speed - carPhysics.deceleration, 0);
-                else if (carPhysics.speed < 0) carPhysics.speed = Math.min(carPhysics.speed + carPhysics.deceleration, 0);
+                updateEngineSound(0, false);
+                
+                // YAYA BUTON KONTROLLERİ (◀ ▶ VE GAZ/FREN BUTONLARI)
+                if (keys.a || keys.ArrowLeft) playerPhysics.angle += 2.5 * delta;
+                if (keys.d || keys.ArrowRight) playerPhysics.angle -= 2.5 * delta;
+
+                let moveDir = 0;
+                if (keys.w || keys.ArrowUp) moveDir = 1;
+                else if (keys.s || keys.ArrowDown) moveDir = -1;
+
+                let isPlayerMoving = (moveDir !== 0);
+
+                if (isPlayerMoving) {
+                    let pNextX = playerPhysics.posX + Math.sin(playerPhysics.angle) * playerPhysics.speed * moveDir * delta;
+                    let pNextZ = playerPhysics.posZ + Math.cos(playerPhysics.angle) * playerPhysics.speed * moveDir * delta;
+
+                    if (isInsideBuilding) {
+                        let b = currentBuildingInside;
+                        if (Math.abs(pNextX - b.insidePos.x) < 80 && Math.abs(pNextZ - b.insidePos.z) < 80) {
+                            playerPhysics.posX = pNextX;
+                            playerPhysics.posZ = pNextZ;
+                        }
+                    } else {
+                        if (!checkBuildingCollision(pNextX, pNextZ, 12)) {
+                            playerPhysics.posX = pNextX;
+                            playerPhysics.posZ = pNextZ;
+                        }
+                    }
+                }
+
+                if (isInsideBuilding) {
+                    playerChar.mesh.position.set(playerPhysics.posX, currentBuildingInside.insidePos.y - 40, playerPhysics.posZ);
+                    playerChar.mesh.rotation.set(0, playerPhysics.angle, 0);
+                } else {
+                    alignObjToTerrain(playerChar.mesh, playerPhysics.posX, playerPhysics.posZ, playerPhysics.angle, 15, 15);
+                }
+
+                animateHuman(playerChar, isPlayerMoving, delta);
+
+                let nearDoor = false;
+                if (!isInsideBuilding) {
+                    for (let i = 0; i < buildings.length; i++) {
+                        let distToDoor = Math.hypot(playerPhysics.posX - buildings[i].doorPos.x, playerPhysics.posZ - buildings[i].doorPos.z);
+                        if (distToDoor < 120) {
+                            nearDoor = true;
+                            break;
+                        }
+                    }
+                }
+
+                let distToCar = Math.hypot(playerPhysics.posX - car.position.x, playerPhysics.posZ - car.position.z);
+
+                if (isInsideBuilding) {
+                    promptMsg.style.display = 'block';
+                    promptMsg.innerText = "Binadasınız: Çıkmak İçin 'I' Tuşuna Basın";
+                } else if (nearDoor) {
+                    promptMsg.style.display = 'block';
+                    promptMsg.innerText = "Kapıya Yaklaştınız: Girmek İçin 'B' Tuşuna Basın";
+                } else if (distToCar < 250) {
+                    promptMsg.style.display = 'block';
+                    promptMsg.innerText = "Arabaya Yakınsınız: Binmek İçin 'B' Tuşuna Basın";
+                } else {
+                    promptMsg.style.display = 'none';
+                }
             }
 
-            updateEngineSound(carPhysics.speed, isAccelerating);
+            pedestrians.forEach(ped => {
+                ped.changeDirTimer -= delta;
+                if (ped.changeDirTimer <= 0) {
+                    ped.angle += (Math.random() - 0.5) * 2;
+                    ped.changeDirTimer = 3 + Math.random() * 6;
+                }
 
-            if (Math.abs(carPhysics.speed) > 0.1) {
-                const speedFactor = Math.min(Math.abs(carPhysics.speed) / 800, 1.0);
-                const direction = carPhysics.speed > 0 ? 1 : -1;
-                if (keys.a || keys.ArrowLeft) carPhysics.angle += 0.06 * speedFactor * direction;
-                if (keys.d || keys.ArrowRight) carPhysics.angle -= 0.06 * speedFactor * direction;
-            }
+                let nX = ped.charData.mesh.position.x + Math.sin(ped.angle) * ped.speed * delta;
+                let nZ = ped.charData.mesh.position.z + Math.cos(ped.angle) * ped.speed * delta;
 
-            let nextX = car.position.x + Math.sin(carPhysics.angle) * carPhysics.speed * delta * 5.5;
-            let nextZ = car.position.z + Math.cos(carPhysics.angle) * carPhysics.speed * delta * 5.5;
-            
-            if (!checkBuildingCollision(nextX, nextZ, carPhysics.radius) && !checkCarToBotCollisions(nextX, nextZ)) {
-                car.position.x = nextX; 
-                car.position.z = nextZ;
-            } else { 
-                carPhysics.speed = -carPhysics.speed * 0.3; 
-            }
+                if (!checkBuildingCollision(nX, nZ, 10)) {
+                    alignObjToTerrain(ped.charData.mesh, nX, nZ, ped.angle, 12, 12);
+                } else {
+                    ped.angle += Math.PI;
+                }
 
-            // Oyuncu aracını yola ve engebelere tam oturtuyoruz (Eğim uyarlaması)
-            alignCarToTerrain(car, car.position.x, car.position.z, carPhysics.angle, 160, 115);
+                animateHuman(ped.charData, true, delta);
+            });
 
-            // Bot arabaların hareketi ve yola tam oturması (Eğim uyarlaması)
             botCars.forEach(bot => {
                 let nextBotX = bot.mesh.position.x + bot.dirX * bot.speed * delta * 5;
                 let nextBotZ = bot.mesh.position.z + bot.dirZ * bot.speed * delta * 5;
@@ -776,12 +1157,11 @@
                     bot.dirX = -bot.dirX; 
                     bot.dirZ = -bot.dirZ; 
                 }
-                // Botun yön açısını hesapla ve araziye göre eğim ver
                 bot.angle = Math.atan2(bot.dirX, bot.dirZ);
-                alignCarToTerrain(bot.mesh, bot.mesh.position.x, bot.mesh.position.z, bot.angle, 160, 120);
+                alignObjToTerrain(bot.mesh, bot.mesh.position.x, bot.mesh.position.z, bot.angle, 160, 120);
             });
 
-            const displaySpeed = Math.round((Math.abs(carPhysics.speed) / 800) * 240);
+            const displaySpeed = inCar ? Math.round((Math.abs(carPhysics.speed) / 800) * 240) : Math.round(playerPhysics.speed / 10);
             speedDigital.innerText = displaySpeed;
             needle.style.transform = `rotate(${-120 + (displaySpeed / 240) * 240}deg)`;
 
@@ -790,24 +1170,45 @@
             else if (fuel > 20) fuelGaugeFill.style.backgroundColor = '#ffcc00';
             else fuelGaugeFill.style.backgroundColor = '#ff3333';
 
-            if (carPhysics.speed > 0.5) gearBox.innerText = "D";
-            else if (carPhysics.speed < -0.5) gearBox.innerText = "R";
-            else gearBox.innerText = "N";
+            if (inCar) {
+                if (carPhysics.speed > 0.5) gearBox.innerText = "D";
+                else if (carPhysics.speed < -0.5) gearBox.innerText = "R";
+                else gearBox.innerText = "N";
+            } else {
+                gearBox.innerText = "YAYA";
+            }
 
-            if (cameraMode === 0) {
-                camera.position.x += ((car.position.x - Math.sin(carPhysics.angle) * 490) - camera.position.x) * 0.15;
-                camera.position.y += ((car.position.y + 210) - camera.position.y) * 0.15;
-                camera.position.z += ((car.position.z - Math.cos(carPhysics.angle) * 490) - camera.position.z) * 0.15;
-                camera.lookAt(car.position.x, car.position.y + 40, car.position.z);
-            } else if (cameraMode === 1) {
-                camera.position.set(car.position.x, car.position.y + 2000, car.position.z - 200);
-                camera.lookAt(car.position);
-            } else if (cameraMode === 2) {
-                camera.position.set(car.position.x + Math.sin(carPhysics.angle) * 35, car.position.y + 70, car.position.z + Math.cos(carPhysics.angle) * 35);
-                camera.lookAt(new THREE.Vector3(car.position.x + Math.sin(carPhysics.angle) * 300, car.position.y + 60, car.position.z + Math.cos(carPhysics.angle) * 300));
-            } else if (cameraMode === 3) {
-                camera.position.set(car.position.x + 350, car.position.y + 150, car.position.z + 350);
-                camera.lookAt(car.position);
+            if (inCar) {
+                if (cameraMode === 0) {
+                    camera.position.x += ((car.position.x - Math.sin(carPhysics.angle) * 490) - camera.position.x) * 0.15;
+                    camera.position.y += ((car.position.y + 210) - camera.position.y) * 0.15;
+                    camera.position.z += ((car.position.z - Math.cos(carPhysics.angle) * 490) - camera.position.z) * 0.15;
+                    camera.lookAt(car.position.x, car.position.y + 40, car.position.z);
+                } else if (cameraMode === 1) {
+                    camera.position.set(car.position.x, car.position.y + 2000, car.position.z - 200);
+                    camera.lookAt(car.position);
+                } else if (cameraMode === 2) {
+                    camera.position.set(car.position.x + Math.sin(carPhysics.angle) * 35, car.position.y + 70, car.position.z + Math.cos(carPhysics.angle) * 35);
+                    camera.lookAt(new THREE.Vector3(car.position.x + Math.sin(carPhysics.angle) * 300, car.position.y + 60, car.position.z + Math.cos(carPhysics.angle) * 300));
+                } else if (cameraMode === 3) {
+                    camera.position.set(car.position.x + 350, car.position.y + 150, car.position.z + 350);
+                    camera.lookAt(car.position);
+                }
+            } else {
+                if (isInsideBuilding) {
+                    let bPos = currentBuildingInside.insidePos;
+                    camera.position.set(bPos.x, bPos.y + 90, bPos.z + 140);
+                    camera.lookAt(playerPhysics.posX, playerChar.mesh.position.y + 20, playerPhysics.posZ);
+                } else {
+                    let camDist = 220;
+                    let targetY = playerChar.mesh.position.y + 35;
+                    
+                    camera.position.x = playerPhysics.posX - Math.sin(cameraYaw) * Math.cos(cameraPitch) * camDist;
+                    camera.position.y = targetY + Math.sin(cameraPitch) * camDist;
+                    camera.position.z = playerPhysics.posZ - Math.cos(cameraYaw) * Math.cos(cameraPitch) * camDist;
+                    
+                    camera.lookAt(playerPhysics.posX, targetY, playerPhysics.posZ);
+                }
             }
 
             drawMinimap();
