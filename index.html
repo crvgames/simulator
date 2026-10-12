@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <link rel="icon" href="favicon0.png" type="image/png">
     <meta name="google-site-verification" content="kLCS6z8Lb3jZLTBq6-TJDJSFEFtRTSW3B3IMBYlx5wo" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -143,7 +142,7 @@
         <p><span class="key">W</span> / <span class="key">S</span> / <span class="key">A</span> / <span class="key">D</span> Yaya Hareket</p>
         <p><span class="key">B</span> Arabaya Bin / Binaya Gir</p>
         <p><span class="key">İ</span> Arabadan İn / Binadan Çık</p>
-        <p><span class="key">Mouse Sol Tık</span> Ekranı Sürükleyip Kamerayı çevir</p>
+        <p><span class="key">Mouse Sol Tık</span> Ekranı Sürükleyip Kamerayi çevir</p>
         <p><span class="key">C</span> Kamera Değiştir</p>
         <p><span class="key">R</span> Konumu Sıfırla</p>
         <p style="color:#009933; font-weight:bold; margin-bottom:0;">🚶 Ekran Buton Kontrolü Aktif!</p>
@@ -448,7 +447,7 @@
 
             pedestrians.push({
                 charData: ped,
-                speed: 15 + Math.random() * 15,
+                speed: 200 + Math.random() * 200,
                 angle: Math.random() * Math.PI * 2,
                 changeDirTimer: Math.random() * 5
             });
@@ -670,10 +669,10 @@
                     
                     car.add(currentCarVisual);
                     statusDiv.style.color = "green"; 
-                    statusDiv.innerText = "Yüklendi! ✔";
+                    statusDiv.innerText = "Yuklendi! ✔";
                 }, function(err) { 
                     statusDiv.style.color = "red"; 
-                    statusDiv.innerText = "Yükleme hatasi."; 
+                    statusDiv.innerText = "Yukleme hatasi."; 
                 });
             };
             reader.readAsArrayBuffer(file);
@@ -738,7 +737,7 @@
         let currentBuildingInside = null;
 
         let carPhysics = { speed: 0, maxSpeed: 800, maxReverseSpeed: -70, acceleration: 1.5, deceleration: 0.3, braking: 10.0, angle: 0, radius: 150 };
-        let playerPhysics = { posX: 0, posZ: 0, posY: 0, angle: 0, speed: 180 };
+        let playerPhysics = { posX: 0, posZ: 0, posY: 0, angle: 0, speed: 450 };
         let fuel = 100;
         
         let cameraYaw = 0;
