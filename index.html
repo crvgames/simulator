@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <link rel="icon" href="favicon0.png" type="image/png">
     <meta name="google-site-verification" content="kLCS6z8Lb3jZLTBq6-TJDJSFEFtRTSW3B3IMBYlx5wo" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -250,21 +249,68 @@
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0xddeeff);
-        scene.fog = new THREE.FogExp2(0xddeeff, 0.00002);
+        scene.fog = new THREE.FogExp2(0xc4d9ee, 0.000035);
         
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1000000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.05;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        const maxAniso = renderer.capabilities.getMaxAnisotropy();
         renderer.setSize(window.innerWidth, window.innerHeight);
         container.appendChild(renderer.domElement);
 
         window.addEventListener('contextmenu', e => e.preventDefault());
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
-        scene.add(ambientLight);
-        
-        const sunLight = new THREE.DirectionalLight(0xffffff, 1.8);
-        sunLight.position.set(20000, 45000, 20000);
-        scene.add(sunLight);
+        const rzMobile = /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent || '');
+        const rzHemi = new THREE.HemisphereLight(0xcfe6ff, 0x6b6358, 0.55);
+        scene.add(rzHemi);
+        const rzSun = new THREE.DirectionalLight(0xfff0d8, 2.1);
+        const rzSunOffset = new THREE.Vector3(1500, 3400, 1500);
+        rzSun.position.copy(rzSunOffset);
+        rzSun.castShadow = true;
+        rzSun.shadow.mapSize.set(rzMobile ? 2048 : 4096, rzMobile ? 2048 : 4096);
+        const rzSunCam = rzSun.shadow.camera;
+        rzSunCam.left = -1800; rzSunCam.right = 1800; rzSunCam.top = 1800; rzSunCam.bottom = -1800; rzSunCam.near = 200; rzSunCam.far = 9000;
+        rzSun.shadow.bias = -0.0004;
+        rzSun.shadow.normalBias = 2.0;
+        scene.add(rzSun);
+        scene.add(rzSun.target);
+
+        // gradyanlı gökyüzü + bulutlar + güneş
+        const rzSkyMat = new THREE.ShaderMaterial({
+            side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false,
+            uniforms: { top: { value: new THREE.Color(0x2f6fc4) }, hor: { value: new THREE.Color(0xc4d9ee) }, sunDir: { value: new THREE.Vector3(1500, 3400, 1500).normalize() }, time: { value: 0 } },
+            vertexShader: 'varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+            fragmentShader: 'uniform vec3 top; uniform vec3 hor; uniform vec3 sunDir; uniform float time; varying vec3 vDir;' +
+                'float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }' +
+                'float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h2(i), h2(i + vec2(1.0, 0.0)), f.x), mix(h2(i + vec2(0.0, 1.0)), h2(i + vec2(1.0, 1.0)), f.x), f.y); }' +
+                'float fbm(vec2 p){ float v = 0.0; float a = 0.5; for (int i = 0; i < 4; i++){ v += a * n2(p); p *= 2.03; a *= 0.5; } return v; }' +
+                'void main(){ vec3 d = normalize(vDir); float h = clamp(d.y, 0.0, 1.0); vec3 col = mix(hor, top, pow(h, 0.55));' +
+                'float s = max(dot(d, normalize(sunDir)), 0.0); col += vec3(1.0, 0.93, 0.78) * (pow(s, 8.0) * 0.18 + pow(s, 400.0) * 2.0);' +
+                'if (d.y > 0.0) { vec2 uv = d.xz / (d.y + 0.18) * 1.4 + vec2(time * 0.01, 0.0); float c = smoothstep(0.52, 0.8, fbm(uv)); col = mix(col, vec3(1.0), c * 0.85 * smoothstep(0.0, 0.25, d.y)); }' +
+                'gl_FragColor = vec4(col, 1.0); }'
+        });
+        const rzSky = new THREE.Mesh(new THREE.SphereGeometry(500000, 24, 16), rzSkyMat);
+        rzSky.renderOrder = -100;
+        rzSky.frustumCulled = false;
+        scene.add(rzSky);
+        // gökyüzünden ortam yansıması (araba boyası, cam ve bina camları için)
+        try {
+            const rzPm = new THREE.PMREMGenerator(renderer);
+            const rzEnvScene = new THREE.Scene();
+            rzEnvScene.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), rzSkyMat));
+            scene.environment = rzPm.fromScene(rzEnvScene, 0.03).texture;
+            rzPm.dispose();
+        } catch (e) { console.warn('Ortam haritasi olusturulamadi', e); }
+
+        // hafif sinematik görüntü
+        container.style.filter = 'contrast(1.05) saturate(1.1)';
+        const rzVignette = document.createElement('div');
+        rzVignette.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:2;background:radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.30) 100%);';
+        document.body.appendChild(rzVignette);
 
         const mapSize = 200000;
         
@@ -342,88 +388,169 @@
         groundGeo.computeVertexNormals();
 
         const canvas = document.createElement('canvas');
-        canvas.width = 512; 
+        canvas.width = 512;
         canvas.height = 512;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#808080';
+        ctx.fillStyle = '#4a4b4f';
         ctx.fillRect(0, 0, 512, 512);
-        ctx.fillStyle = '#ffffff';
-        for (let i = 0; i < 512; i += 128) { 
-            ctx.fillRect(240, i, 32, 64); 
+        for (let i = 0; i < 9000; i++) {
+            const v = (55 + Math.random() * 55) | 0;
+            ctx.fillStyle = 'rgba(' + v + ',' + v + ',' + (v + 3) + ',0.55)';
+            ctx.fillRect(Math.random() * 512, Math.random() * 512, 1 + Math.random() * 2, 1 + Math.random() * 2);
         }
-        
+        for (let i = 0; i < 16; i++) {
+            ctx.fillStyle = 'rgba(20,20,22,0.12)';
+            ctx.beginPath(); ctx.ellipse(Math.random() * 512, Math.random() * 512, 12 + Math.random() * 40, 8 + Math.random() * 24, Math.random() * 3, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.fillStyle = 'rgba(10,10,12,0.10)';
+        ctx.fillRect(150, 0, 22, 512); ctx.fillRect(340, 0, 22, 512);
+        ctx.strokeStyle = 'rgba(8,8,8,0.55)'; ctx.lineWidth = 1.2;
+        for (let i = 0; i < 12; i++) {
+            let cx = Math.random() * 512, cy = Math.random() * 512;
+            ctx.beginPath(); ctx.moveTo(cx, cy);
+            for (let k = 0; k < 7; k++) { cx += (Math.random() - 0.5) * 36; cy += (Math.random() - 0.3) * 24; ctx.lineTo(cx, cy); }
+            ctx.stroke();
+        }
+        ctx.fillStyle = '#e6e6e6';
+        for (let i = 0; i < 512; i += 128) { ctx.fillRect(240, i, 32, 64); }
+        for (let i = 0; i < 260; i++) {
+            ctx.fillStyle = 'rgba(70,70,72,0.45)';
+            ctx.fillRect(240 + Math.random() * 32, ((Math.random() * 4) | 0) * 128 + Math.random() * 64, 1 + Math.random() * 3, 1 + Math.random() * 3);
+        }
+
         const texture = new THREE.CanvasTexture(canvas);
         texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
         texture.repeat.set(250, 250);
+        texture.anisotropy = maxAniso;
 
-        const groundMesh = new THREE.Mesh(groundGeo, new THREE.MeshBasicMaterial({ map: texture }));
+        const groundMesh = new THREE.Mesh(groundGeo, new THREE.MeshStandardMaterial({ map: texture, bumpMap: texture, bumpScale: 1.2, roughness: 0.92, metalness: 0, envMapIntensity: 0.25 }));
+        groundMesh.receiveShadow = true;
         scene.add(groundMesh);
 
         /* ===== INSAN (YAYA / OYUNCU) MODELLERI OLUSTURMA ===== */
+        /* ===== GERCEKCI MODEL YARDIMCILARI ===== */
+        function rzMerge(list) {
+            const parts = list.map(g => g.index ? g.toNonIndexed() : g);
+            let total = 0;
+            parts.forEach(g => { total += g.attributes.position.count; });
+            const pos = new Float32Array(total * 3), nor = new Float32Array(total * 3);
+            const hasCol = parts.every(g => g.attributes.color);
+            const col = hasCol ? new Float32Array(total * 3) : null;
+            let o = 0;
+            parts.forEach(g => {
+                pos.set(g.attributes.position.array, o * 3);
+                nor.set(g.attributes.normal.array, o * 3);
+                if (hasCol) col.set(g.attributes.color.array, o * 3);
+                o += g.attributes.position.count;
+            });
+            const out = new THREE.BufferGeometry();
+            out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+            if (hasCol) out.setAttribute('color', new THREE.BufferAttribute(col, 3));
+            return out;
+        }
+        function rzPiece(geo, x, y, z, sx, sy, sz, rx, ry, rz2) {
+            const m = new THREE.Matrix4();
+            m.compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx || 0, ry || 0, rz2 || 0)), new THREE.Vector3(sx, sy, sz));
+            const g = geo.clone();
+            g.applyMatrix4(m);
+            return g;
+        }
+        function rzColor(g, hex) {
+            const c = new THREE.Color(hex), n = g.attributes.position.count, a = new Float32Array(n * 3);
+            for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+            g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+            return g;
+        }
+
+        /* ===== INSAN (YAYA / OYUNCU) MODELLERI: yuvarlak organlar, yuz, sac, eklemler ===== */
+        let rzHG = null;
+        function rzGetHumanGeos() {
+            if (rzHG) return rzHG;
+            const S = (r, w, h) => new THREE.SphereGeometry(r, w || 10, h || 8);
+            const C = (rt, rb, h, seg) => new THREE.CylinderGeometry(rt, rb, h, seg || 12);
+            const P = rzPiece;
+            const hg = {};
+            hg.skinBody = rzMerge([
+                P(C(1.8, 2.0, 5.5), 0, 48.4, 0, 1, 1, 1),
+                P(S(5.3, 12, 10), 0, 53.6, 0, 0.86, 1.06, 0.95),
+                P(S(3.6, 10, 8), 0, 50.8, 0.9, 0.95, 0.8, 0.9),
+                P(S(1.0, 8, 6), -5.0, 53.2, 0, 0.45, 1.0, 0.7),
+                P(S(1.0, 8, 6), 5.0, 53.2, 0, 0.45, 1.0, 0.7),
+                P(new THREE.ConeGeometry(0.95, 2.2, 8), 0, 52.4, 5.3, 1, 1, 1, Math.PI / 2, 0, 0)
+            ]);
+            hg.shirtBody = rzMerge([
+                P(C(6.0, 6.6, 9, 14), 0, 26.5, 0, 1.15, 1, 0.78),
+                P(C(7.7, 6.2, 16, 14), 0, 38, 0, 1.2, 1, 0.7),
+                P(S(3.7, 10, 8), -9.4, 44, 0, 1, 1, 1),
+                P(S(3.7, 10, 8), 9.4, 44, 0, 1, 1, 1),
+                P(C(2.4, 2.7, 1.6, 12), 0, 46.4, 0, 1.2, 1, 1)
+            ]);
+            hg.pantsBody = rzMerge([P(C(6.4, 6.9, 7, 14), 0, 23, 0, 1.15, 1, 0.78)]);
+            hg.hair = rzMerge([
+                P(new THREE.SphereGeometry(5.55, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.45), 0, 54.2, -0.4, 0.9, 1.0, 1.0),
+                P(S(5.0, 10, 8), 0, 52.6, -1.8, 0.88, 0.95, 0.7)
+            ]);
+            hg.features = rzMerge([
+                rzColor(P(S(0.85, 8, 6), -1.9, 53.8, 4.65, 1, 0.8, 0.5), 0xffffff),
+                rzColor(P(S(0.85, 8, 6), 1.9, 53.8, 4.65, 1, 0.8, 0.5), 0xffffff),
+                rzColor(P(S(0.45, 8, 6), -1.9, 53.8, 4.95, 1, 1, 0.5), 0x3b2a1a),
+                rzColor(P(S(0.45, 8, 6), 1.9, 53.8, 4.95, 1, 1, 0.5), 0x3b2a1a),
+                rzColor(P(new THREE.BoxGeometry(2.2, 0.4, 0.5), -1.9, 55.2, 4.85, 1, 1, 1), 0x2a1c12),
+                rzColor(P(new THREE.BoxGeometry(2.2, 0.4, 0.5), 1.9, 55.2, 4.85, 1, 1, 1), 0x2a1c12),
+                rzColor(P(new THREE.BoxGeometry(2.4, 0.35, 0.5), 0, 49.9, 3.95, 1, 1, 1), 0x8a3b3b)
+            ]);
+            hg.sleeve = rzMerge([P(C(2.7, 2.4, 7.5, 10), 0, -3.6, 0, 1, 1, 1)]);
+            hg.upperSkin = rzMerge([P(C(2.25, 2.05, 4.2, 10), 0, -9.2, 0, 1, 1, 1)]);
+            hg.foreArm = rzMerge([
+                P(S(2.1, 8, 6), 0, 0, 0, 1, 1, 1),
+                P(C(2.0, 1.5, 9, 10), 0, -4.5, 0, 1, 1, 1),
+                P(S(1.75, 8, 6), 0, -10.2, 0, 0.85, 1.2, 1.0),
+                P(S(0.7, 6, 5), 1.4, -9.2, 0.9, 1, 1, 1)
+            ]);
+            hg.thigh = rzMerge([P(C(3.4, 2.6, 10.4, 12), 0, -5.2, 0, 1, 1, 1.05), P(S(2.7, 8, 6), 0, -10.4, 0, 1, 1, 1)]);
+            hg.calf = rzMerge([P(C(2.6, 1.8, 9.2, 12), 0, -4.6, 0, 1, 1, 1.05)]);
+            hg.shoe = rzMerge([P(new THREE.BoxGeometry(4.2, 3.0, 8.6), 0, -8.0, 1.6, 1, 1, 1), P(S(2.2, 8, 6), 0, -8.0, 5.4, 1.0, 0.7, 1.0)]);
+            rzHG = hg;
+            return hg;
+        }
+        const rzHM = { skin: {}, shirt: {}, hair: {}, pants: {} };
+        const rzShoeMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1d, roughness: 0.55, metalness: 0.05, envMapIntensity: 0.4 });
+        const rzFeatMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, envMapIntensity: 0.3 });
+        function rzSkinMat(h) { return rzHM.skin[h] || (rzHM.skin[h] = new THREE.MeshStandardMaterial({ color: h, roughness: 0.6, metalness: 0, envMapIntensity: 0.3, emissive: new THREE.Color(h).multiplyScalar(0.06) })); }
+        function rzShirtMat(h) { return rzHM.shirt[h] || (rzHM.shirt[h] = new THREE.MeshStandardMaterial({ color: h, roughness: 0.85, metalness: 0, envMapIntensity: 0.3 })); }
+        function rzHairMat(h) { return rzHM.hair[h] || (rzHM.hair[h] = new THREE.MeshStandardMaterial({ color: h, roughness: 0.5, metalness: 0.15, envMapIntensity: 0.4 })); }
+        function rzPantsMat(h) { return rzHM.pants[h] || (rzHM.pants[h] = new THREE.MeshStandardMaterial({ color: h, roughness: 0.9, metalness: 0, envMapIntensity: 0.25 })); }
+        const rzHairColors = [0x16120e, 0x2b1d12, 0x4a3320, 0x1a1a1a, 0x7a5a32, 0xb08d57];
+
         function createHumanCharacter(isPlayer = false, skinColorHex = 0xffdbac, shirtColorHex = 0x1e88e5) {
+            const G = rzGetHumanGeos();
             const human = new THREE.Group();
-            
-            const skinMat = new THREE.MeshStandardMaterial({ color: skinColorHex, roughness: 0.6 });
-            const shirtMat = new THREE.MeshStandardMaterial({ color: shirtColorHex, roughness: 0.5 });
-            const pantsMat = new THREE.MeshStandardMaterial({ color: isPlayer ? 0x222222 : 0x333344, roughness: 0.7 });
-            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-            const whiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(16, 26, 10), shirtMat);
-            torso.position.y = 33;
-            human.add(torso);
-
-            const head = new THREE.Mesh(new THREE.BoxGeometry(12, 12, 12), skinMat);
-            head.position.y = 52;
-            human.add(head);
-
-            const eyeL_white = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.5, 1), whiteMat);
-            eyeL_white.position.set(-3, 53, 6.1);
-            const eyeR_white = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.5, 1), whiteMat);
-            eyeR_white.position.set(3, 53, 6.1);
-
-            const eyeL = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.1), eyeMat);
-            eyeL.position.set(-3, 53, 6.2);
-            const eyeR = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.1), eyeMat);
-            eyeR.position.set(3, 53, 6.2);
-
-            human.add(eyeL_white, eyeR_white, eyeL, eyeR);
-
-            const leftArmGroup = new THREE.Group();
-            leftArmGroup.position.set(-10, 44, 0);
-            const leftArm = new THREE.Mesh(new THREE.BoxGeometry(4.5, 22, 4.5), skinMat);
-            leftArm.position.y = -11;
-            leftArmGroup.add(leftArm);
-            human.add(leftArmGroup);
-
-            const rightArmGroup = new THREE.Group();
-            rightArmGroup.position.set(10, 44, 0);
-            const rightArm = new THREE.Mesh(new THREE.BoxGeometry(4.5, 22, 4.5), skinMat);
-            rightArm.position.y = -11;
-            rightArmGroup.add(rightArm);
-            human.add(rightArmGroup);
-
-            const leftLegGroup = new THREE.Group();
-            leftLegGroup.position.set(-4.5, 20, 0);
-            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(5.5, 20, 5.5), pantsMat);
-            leftLeg.position.y = -10;
-            leftLegGroup.add(leftLeg);
-            human.add(leftLegGroup);
-
-            const rightLegGroup = new THREE.Group();
-            rightLegGroup.position.set(4.5, 20, 0);
-            const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(5.5, 20, 5.5), pantsMat);
-            rightLeg.position.y = -10;
-            rightLegGroup.add(rightLeg);
-            human.add(rightLegGroup);
-
+            const body = new THREE.Group();
+            human.add(body);
+            const skinM = rzSkinMat(skinColorHex), shirtM = rzShirtMat(shirtColorHex), pantsM = rzPantsMat(isPlayer ? 0x222222 : 0x333344);
+            const hairM = rzHairMat(isPlayer ? 0x2b1d12 : rzHairColors[(Math.random() * rzHairColors.length) | 0]);
+            const add = (geo, mat, parent) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; parent.add(m); return m; };
+            add(G.skinBody, skinM, body); add(G.shirtBody, shirtM, body); add(G.pantsBody, pantsM, body); add(G.hair, hairM, body); add(G.features, rzFeatMat, body);
+            const mkArm = x => {
+                const arm = new THREE.Group(); arm.position.set(x, 44, 0);
+                add(G.sleeve, shirtM, arm); add(G.upperSkin, skinM, arm);
+                const elbow = new THREE.Group(); elbow.position.set(0, -11, 0);
+                add(G.foreArm, skinM, elbow); arm.add(elbow); body.add(arm);
+                return { arm: arm, elbow: elbow };
+            };
+            const mkLeg = x => {
+                const leg = new THREE.Group(); leg.position.set(x, 20, 0);
+                add(G.thigh, pantsM, leg);
+                const knee = new THREE.Group(); knee.position.set(0, -10.4, 0);
+                add(G.calf, pantsM, knee); add(G.shoe, rzShoeMat, knee); leg.add(knee); body.add(leg);
+                return { leg: leg, knee: knee };
+            };
+            const aL = mkArm(-9.8), aR = mkArm(9.8), lL = mkLeg(-4.2), lR = mkLeg(4.2);
             return {
-                mesh: human,
-                leftArm: leftArmGroup,
-                rightArm: rightArmGroup,
-                leftLeg: leftLegGroup,
-                rightLeg: rightLegGroup,
-                head: head,
+                mesh: human, body: body,
+                leftArm: aL.arm, rightArm: aR.arm, leftElbow: aL.elbow, rightElbow: aR.elbow,
+                leftLeg: lL.leg, rightLeg: lR.leg, leftKnee: lL.knee, rightKnee: lR.knee,
                 animTimer: Math.random() * 10
             };
         }
@@ -459,50 +586,136 @@
         /* ===== BINALAR VE KAPILAR ===== */
         const buildings = [];
         const buildingGroup = new THREE.Group();
-        const bGeo = new THREE.BoxGeometry(1, 1, 1);
-        const bMat = new THREE.MeshStandardMaterial({ map: buildingTexture, roughness: 0.5 });
-        const doorMat = new THREE.MeshStandardMaterial({ color: 0x4a2e10, roughness: 0.3 });
-        const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0xffcc00 });
+        // --- gercekci cepheler: 4 doku turu x 3 ton, tam sayi pencere/kat tekrari ---
+        function rzFacadeTex(type) {
+            const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+            const g = c.getContext('2d');
+            g.fillStyle = ['#5c7a99', '#b7ae9d', '#8d4e3a', '#383d45'][type];
+            g.fillRect(0, 0, 256, 256);
+            for (let i = 0; i < 2500; i++) { g.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '255,255,255' : '0,0,0') + ',' + (Math.random() * 0.06).toFixed(3) + ')'; g.fillRect(Math.random() * 256, Math.random() * 256, 2, 2); }
+            if (type === 2) {
+                g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 1;
+                for (let y = 0; y < 256; y += 8) {
+                    g.beginPath(); g.moveTo(0, y); g.lineTo(256, y); g.stroke();
+                    for (let x = (y / 8) % 2 ? 0 : 8; x < 256; x += 16) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 8); g.stroke(); }
+                }
+            }
+            const bays = 2, floors = 4, bw = 128, fh = 64;
+            for (let f = 0; f < floors; f++) for (let b = 0; b < bays; b++) {
+                const x0 = b * bw, y0 = f * fh;
+                let wx, wy, ww, wh;
+                if (type === 0) { wx = x0 + 4; wy = y0 + 4; ww = bw - 8; wh = fh - 8; }
+                else if (type === 1) { wx = x0 + 22; wy = y0 + 14; ww = bw - 44; wh = 34; }
+                else if (type === 2) { wx = x0 + 30; wy = y0 + 12; ww = bw - 60; wh = 38; }
+                else { wx = x0 + 44; wy = y0 + 6; ww = bw - 88; wh = fh - 12; }
+                if (type !== 0) { g.fillStyle = type === 2 ? '#e8e2d6' : (type === 1 ? '#6d6a63' : '#15181c'); g.fillRect(wx - 3, wy - 3, ww + 6, wh + 6); }
+                const gr = g.createLinearGradient(0, wy, 0, wy + wh), r = Math.random();
+                if (r < 0.14) { gr.addColorStop(0, '#ffe9b0'); gr.addColorStop(1, '#e8b860'); }
+                else if (r < 0.28) { gr.addColorStop(0, '#d8d2c4'); gr.addColorStop(1, '#b9b09c'); }
+                else { gr.addColorStop(0, '#9fc4e6'); gr.addColorStop(0.55, '#4a6f94'); gr.addColorStop(1, '#1f3248'); }
+                g.fillStyle = gr; g.fillRect(wx, wy, ww, wh);
+                g.fillStyle = 'rgba(255,255,255,0.18)';
+                g.beginPath(); g.moveTo(wx, wy + wh); g.lineTo(wx + ww * 0.45, wy); g.lineTo(wx + ww * 0.62, wy); g.lineTo(wx + ww * 0.12, wy + wh); g.fill();
+                g.fillStyle = 'rgba(20,20,24,0.55)'; g.fillRect(wx + ww / 2 - 1, wy, 2, wh);
+                if (type === 0) g.fillRect(wx, wy + wh / 2 - 1, ww, 2);
+                if (type === 1 || type === 2) { g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(wx - 4, wy + wh + 3, ww + 8, 3); }
+            }
+            if (type === 1 || type === 3) { g.fillStyle = 'rgba(0,0,0,0.22)'; for (let f = 0; f < floors; f++) g.fillRect(0, f * fh, 256, 2); }
+            const t = new THREE.CanvasTexture(c);
+            t.wrapS = t.wrapT = THREE.RepeatWrapping;
+            t.anisotropy = maxAniso;
+            return t;
+        }
+        const rzFacadeMats = [];
+        [0, 1, 2, 3].forEach(t => {
+            const tex = rzFacadeTex(t);
+            [0xffffff, 0xe8ddd0, 0xd0dae6].forEach(tint => {
+                rzFacadeMats.push(new THREE.MeshStandardMaterial({
+                    map: tex, bumpMap: tex, bumpScale: t === 0 ? 0.2 : 0.7, color: tint,
+                    roughness: [0.18, 0.7, 0.85, 0.5][t], metalness: [0.5, 0.05, 0.02, 0.25][t], envMapIntensity: [1.4, 0.5, 0.3, 0.8][t]
+                }));
+            });
+        });
+        const rzRoofMat = new THREE.MeshStandardMaterial({ color: 0x4a4d52, roughness: 0.95, envMapIntensity: 0.2 });
+        const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.35, metalness: 0.6 });
+        const rzDoorGlassMat = new THREE.MeshStandardMaterial({ color: 0x1d2b3a, roughness: 0.08, metalness: 0.8, envMapIntensity: 1.5 });
+        const rzAwningMat = new THREE.MeshStandardMaterial({ color: 0x7a1f1f, roughness: 0.8 });
+        const rzStepMat = new THREE.MeshStandardMaterial({ color: 0x77777c, roughness: 0.9 });
+        const rzHandleMat = new THREE.MeshStandardMaterial({ color: 0xd8dce0, metalness: 0.95, roughness: 0.15, envMapIntensity: 1.4 });
+        const rzDoorFrameGeo = new THREE.BoxGeometry(38, 54, 2), rzDoorGeo = new THREE.BoxGeometry(32, 50, 4);
+        const rzAwningGeo = new THREE.BoxGeometry(52, 3, 22), rzStepGeo = new THREE.BoxGeometry(44, 3, 14), rzHandleGeo = new THREE.BoxGeometry(1.6, 14, 2);
 
         const indoorGroup = new THREE.Group();
         const indoorMat = new THREE.MeshStandardMaterial({ color: 0x151522, side: THREE.BackSide });
         const indoorLight = new THREE.PointLight(0xffaa44, 2, 300);
 
+        const rzRoofProps = [];
         for(let i = 0; i < 800; i++) {
-            const h = 400 + Math.random() * 900; 
-            const w = 300 + Math.random() * 150; 
+            const h = 400 + Math.random() * 900;
+            const w = 300 + Math.random() * 150;
             const d = 300 + Math.random() * 150;
-            const building = new THREE.Mesh(bGeo, bMat); 
-            building.scale.set(w, h, d);
-            
+            const bmat = rzFacadeMats[(Math.random() * rzFacadeMats.length) | 0];
+            const geo = new THREE.BoxGeometry(w, h + 120, d);
+            const uv = geo.attributes.uv;
+            const reps = [[d, h + 120], [d, h + 120], null, null, [w, h + 120], [w, h + 120]];
+            for (let f = 0; f < 6; f++) {
+                const r = reps[f];
+                if (!r) continue;
+                const ur = Math.max(1, Math.round(r[0] / 120)), vr = Math.max(1, Math.round(r[1] / 200));
+                for (let k = 0; k < 4; k++) { const ix = f * 4 + k; uv.setXY(ix, uv.getX(ix) * ur, uv.getY(ix) * vr); }
+            }
+            uv.needsUpdate = true;
+            const building = new THREE.Mesh(geo, [bmat, bmat, rzRoofMat, rzRoofMat, bmat, bmat]);
+            building.castShadow = true;
+            building.receiveShadow = true;
+
             let x = (Math.random() - 0.5) * (mapSize - 10000);
             let z = (Math.random() - 0.5) * (mapSize - 10000);
-            
+
             if(Math.abs(x) < 1500) x += (x > 0 ? 1800 : -1800);
             if(Math.abs(z) < 1500) z += (z > 0 ? 1800 : -1800);
-            
+
             let groundY = getTerrainHeight(x, z);
-            building.position.set(x, groundY + h/2, z);
+            building.position.set(x, groundY + h/2 - 60, z);
             buildingGroup.add(building);
 
             const doorGroup = new THREE.Group();
-            const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(32, 50, 4), doorMat);
+            const doorMesh = new THREE.Mesh(rzDoorGeo, rzDoorGlassMat);
             doorMesh.position.set(0, 25, d/2 + 2);
-            const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(38, 54, 2), doorFrameMat);
+            const doorFrame = new THREE.Mesh(rzDoorFrameGeo, doorFrameMat);
             doorFrame.position.set(0, 27, d/2 + 1);
-            doorGroup.add(doorFrame, doorMesh);
+            const awning = new THREE.Mesh(rzAwningGeo, rzAwningMat);
+            awning.position.set(0, 62, d/2 + 10); awning.rotation.x = 0.15;
+            const step = new THREE.Mesh(rzStepGeo, rzStepMat);
+            step.position.set(0, 1.5, d/2 + 8);
+            const handle = new THREE.Mesh(rzHandleGeo, rzHandleMat);
+            handle.position.set(-10, 26, d/2 + 4.6);
+            doorGroup.add(doorFrame, doorMesh, awning, step, handle);
             doorGroup.position.set(x, groundY, z);
             buildingGroup.add(doorGroup);
 
             let doorWorldPos = new THREE.Vector3(x, groundY + 15, z + d/2 + 15);
 
-            buildings.push({ 
-                box: new THREE.Box3().setFromObject(building), 
+            const nProps = 1 + ((Math.random() * 3) | 0);
+            for (let k = 0; k < nProps; k++) rzRoofProps.push({ x: x + (Math.random() - 0.5) * w * 0.6, y: groundY + h, z: z + (Math.random() - 0.5) * d * 0.6, t: Math.random() < 0.3 ? 1 : 0, r: Math.random() * Math.PI });
+
+            buildings.push({
+                box: new THREE.Box3().setFromObject(building),
                 x: x, z: z, w: w, d: d, h: h,
                 doorPos: doorWorldPos,
                 insidePos: new THREE.Vector3(x, groundY + 20, z)
             });
         }
+        // catilarda klima uniteleri ve su depolari
+        (function () {
+            const mt = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3(1, 1, 1), ps = new THREE.Vector3();
+            const acList = rzRoofProps.filter(p => p.t === 0), tankList = rzRoofProps.filter(p => p.t === 1);
+            const acMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(34, 16, 26), new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.6, metalness: 0.4 }), acList.length);
+            acList.forEach((p, i) => { e.set(0, p.r, 0); q.setFromEuler(e); ps.set(p.x, p.y + 8, p.z); mt.compose(ps, q, sc); acMesh.setMatrixAt(i, mt); });
+            const tankMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(22, 22, 36, 14), new THREE.MeshStandardMaterial({ color: 0x6d5a48, roughness: 0.8 }), tankList.length);
+            tankList.forEach((p, i) => { e.set(0, p.r, 0); q.setFromEuler(e); ps.set(p.x, p.y + 18, p.z); mt.compose(ps, q, sc); tankMesh.setMatrixAt(i, mt); });
+            [acMesh, tankMesh].forEach(m => { m.instanceMatrix.needsUpdate = true; m.frustumCulled = false; m.castShadow = true; buildingGroup.add(m); });
+        })();
         scene.add(buildingGroup);
 
         const interiorRoom = new THREE.Mesh(new THREE.BoxGeometry(180, 100, 180), indoorMat);
@@ -536,6 +749,13 @@
             const pump1 = new THREE.Mesh(new THREE.BoxGeometry(40, 70, 30), pumpMat); pump1.position.set(-60, 40, 0); station.add(pump1);
             const pump2 = new THREE.Mesh(new THREE.BoxGeometry(40, 70, 30), pumpMat); pump2.position.set(60, 40, 0); station.add(pump2);
 
+            const stripMat = new THREE.MeshBasicMaterial({ color: 0xfff4cf });
+            [-90, 90].forEach(zz => { const st = new THREE.Mesh(new THREE.BoxGeometry(300, 2, 24), stripMat); st.position.set(0, 149, zz); station.add(st); });
+            const screenMat = new THREE.MeshBasicMaterial({ color: 0x39ff88 });
+            [-60, 60].forEach(px => [-1, 1].forEach(sd => { const scr = new THREE.Mesh(new THREE.BoxGeometry(22, 14, 1), screenMat); scr.position.set(px, 52, sd * 15.5); station.add(scr); }));
+            const band = new THREE.Mesh(new THREE.BoxGeometry(362, 6, 362), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }));
+            band.position.set(0, 160, 0); station.add(band);
+            station.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
             station.position.set(x, groundY, z);
             gasStationGroup.add(station);
             gasStations.push({ x: x, z: z, radius: 220 });
@@ -582,13 +802,86 @@
         const botCars = []; 
         const botColors = [0xff4444, 0x4444ff, 0x222222, 0x11cc22, 0xff00bb];
         
+        /* ===== GERCEKCI ARAC GOVDESI: yan profilden kavisli govde, cam, jant, far ===== */
+        const rzCarSets = {};
+        function rzGetCarSet(kind) {
+            if (rzCarSets[kind]) return rzCarSets[kind];
+            const k = kind === 'taxi' ? 170 / 160 : 1, W = kind === 'taxi' ? 115 : 120, L = 160 * k;
+            const P = rzPiece, C = (rt, rb, h, s) => new THREE.CylinderGeometry(rt, rb, h, s || 16), Bx = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+            const T = (z, y) => [-z * k, y];
+            const s = new THREE.Shape();
+            const mv = (z, y) => { const p = T(z, y); s.moveTo(p[0], p[1]); };
+            const ln = (z, y) => { const p = T(z, y); s.lineTo(p[0], p[1]); };
+            const q = (cz, cy, z, y) => { const c = T(cz, cy), p = T(z, y); s.quadraticCurveTo(c[0], c[1], p[0], p[1]); };
+            mv(76, 17); ln(80, 22); ln(80, 34); q(80, 45, 64, 47); ln(32, 52); q(26, 53, 22, 60); ln(10, 76); q(6, 81, -4, 81);
+            ln(-34, 81); q(-50, 80, -60, 64); ln(-66, 58); q(-72, 56, -79, 55); q(-81, 54, -81, 44); ln(-81, 22); ln(-77, 17);
+            s.closePath();
+            const bev = 3;
+            const bodyG = new THREE.ExtrudeGeometry(s, { depth: W - 2 * bev, bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: 3, curveSegments: 6 });
+            bodyG.translate(0, 0, -(W - 2 * bev) / 2);
+            bodyG.rotateY(Math.PI / 2);
+            const gs = new THREE.Shape();
+            const gp = [[24.5, 57.5], [11.5, 75.5], [7, 77.8], [-4, 79.5], [-34, 79.5], [-47, 78.8], [-52.3, 77.9], [-60.7, 64.4], [-62.5, 60], [-62.5, 57.5]];
+            gp.forEach((p, i) => { const t = T(p[0], p[1]); if (i === 0) gs.moveTo(t[0], t[1]); else gs.lineTo(t[0], t[1]); });
+            gs.closePath();
+            const glassG = new THREE.ExtrudeGeometry(gs, { depth: W + 1.6, bevelEnabled: false });
+            glassG.translate(0, 0, -(W + 1.6) / 2);
+            glassG.rotateY(Math.PI / 2);
+
+            const paint = [bodyG, P(Bx(W + 2.4, 22, 3.5), 0, 68.5, -14 * k, 1, 1, 1)];
+            const rubber = [], metal = [], trim = [], lights = [];
+            [[1, 1], [-1, 1], [1, -1], [-1, -1]].forEach(a => {
+                const sx = a[0], sz = a[1], wx = sx * (W / 2 + 2), wz = sz * (L / 3);
+                rubber.push(P(C(26, 26, 18, 28), wx, 26, wz, 1, 1, 1, 0, 0, Math.PI / 2));
+                metal.push(P(C(17.5, 17.5, 18.6, 24), wx + sx * 0.2, 26, wz, 1, 1, 1, 0, 0, Math.PI / 2));
+                trim.push(P(C(15, 15, 19.2, 20), wx + sx * 0.4, 26, wz, 1, 1, 1, 0, 0, Math.PI / 2));
+                metal.push(P(C(13, 13, 19.8, 5), wx + sx * 0.6, 26, wz, 1, 1, 1, 0, 0, Math.PI / 2));
+                metal.push(P(C(3.5, 3.5, 20.6, 12), wx + sx * 0.8, 26, wz, 1, 1, 1, 0, 0, Math.PI / 2));
+            });
+            trim.push(P(Bx(W - 14, 8, 8), 0, 20.5, 76 * k, 1, 1, 1), P(Bx(W - 14, 8, 8), 0, 20.5, -76 * k, 1, 1, 1), P(Bx(48, 9, 3), 0, 36, 80.6 * k, 1, 1, 1));
+            [1, -1].forEach(sd => {
+                trim.push(P(Bx(7, 5, 10), sd * (W / 2 + 5), 59, 26 * k, 1, 1, 1));
+                trim.push(P(Bx(0.8, 22, 0.8), sd * (W / 2 + 0.5), 38, 24 * k, 1, 1, 1), P(Bx(0.8, 22, 0.8), sd * (W / 2 + 0.5), 38, -24 * k, 1, 1, 1));
+                metal.push(P(Bx(1.6, 1.6, 9), sd * (W / 2 + 1.1), 49, 12 * k, 1, 1, 1), P(Bx(1.6, 1.6, 9), sd * (W / 2 + 1.1), 49, -36 * k, 1, 1, 1));
+                lights.push(rzColor(P(new THREE.SphereGeometry(7, 10, 8), sd * 39, 38, 77 * k, 1.2, 0.7, 0.55), 0xfff5d0));
+                lights.push(rzColor(P(Bx(14, 6, 3), sd * 42, 43, -80.5 * k, 1, 1, 1), 0xff2222));
+            });
+            lights.push(rzColor(P(Bx(22, 10, 1), 0, 27, 81 * k, 1, 1, 1), 0xf2f2f2), rzColor(P(Bx(22, 10, 1), 0, 29, -81.6 * k, 1, 1, 1), 0xf2f2f2));
+            const set = { paint: rzMerge(paint), glass: glassG, rubber: rzMerge(rubber), metal: rzMerge(metal), trim: rzMerge(trim), lights: rzMerge(lights) };
+            rzCarSets[kind] = set;
+            return set;
+        }
+        const rzPaints = {};
+        function rzPaintMat(h) { return rzPaints[h] || (rzPaints[h] = new THREE.MeshPhysicalMaterial({ color: h, metalness: 0.55, roughness: 0.32, clearcoat: 1.0, clearcoatRoughness: 0.06, envMapIntensity: 1.3 })); }
+        const rzGlassMat = new THREE.MeshPhysicalMaterial({ color: 0x1b2733, metalness: 0.9, roughness: 0.05, envMapIntensity: 1.6, transparent: true, opacity: 0.85 });
+        const rzRubberMat = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.9, envMapIntensity: 0.2 });
+        const rzMetalMat = new THREE.MeshStandardMaterial({ color: 0xcfd3d8, metalness: 0.9, roughness: 0.25, envMapIntensity: 1.4 });
+        const rzTrimMat = new THREE.MeshStandardMaterial({ color: 0x111214, roughness: 0.6, envMapIntensity: 0.5 });
+        const rzLightMat = new THREE.MeshBasicMaterial({ vertexColors: true });
+        function rzBuildCar(kind, colorHex) {
+            const set = rzGetCarSet(kind), g = new THREE.Group();
+            const add = (geo, mat, shadow) => { const m = new THREE.Mesh(geo, mat); m.castShadow = shadow !== false; m.receiveShadow = true; g.add(m); };
+            add(set.paint, rzPaintMat(colorHex)); add(set.glass, rzGlassMat, false); add(set.rubber, rzRubberMat); add(set.metal, rzMetalMat); add(set.trim, rzTrimMat); add(set.lights, rzLightMat, false);
+            return g;
+        }
+        function rzAddTaxiExtras(grp) {
+            const W = 115, L = 170;
+            const cv = document.createElement('canvas'); cv.width = 256; cv.height = 32;
+            const g = cv.getContext('2d');
+            for (let i = 0; i < 16; i++) for (let j = 0; j < 2; j++) { g.fillStyle = (i + j) % 2 ? '#111' : '#fff'; g.fillRect(i * 16, j * 16, 16, 16); }
+            const stripeMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv) });
+            [1, -1].forEach(sd => { const m = new THREE.Mesh(new THREE.PlaneGeometry(L * 0.7, 6), stripeMat); m.position.set(sd * (W / 2 + 1.2), 40, -2); m.rotation.y = sd * Math.PI / 2; grp.add(m); });
+            const sc2 = document.createElement('canvas'); sc2.width = 128; sc2.height = 48;
+            const sg = sc2.getContext('2d');
+            sg.fillStyle = '#ffd54f'; sg.fillRect(0, 0, 128, 48); sg.fillStyle = '#111'; sg.font = 'bold 34px Arial'; sg.textAlign = 'center'; sg.textBaseline = 'middle'; sg.fillText('TAXI', 64, 26);
+            const faceMat = new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(sc2), emissive: 0xffd54f, emissiveIntensity: 0.55, roughness: 0.5 });
+            const sideMat = new THREE.MeshStandardMaterial({ color: 0xffe082, emissive: 0xffc107, emissiveIntensity: 0.6 });
+            const sign = new THREE.Mesh(new THREE.BoxGeometry(32, 10, 14), [sideMat, sideMat, sideMat, sideMat, faceMat, faceMat]);
+            sign.position.set(0, 87, -4);
+            grp.add(sign);
+        }
         function createDefaultBotVisual(colorHex) {
-            const group = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(carW, carH, carL), new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.3 }));
-            body.position.y = carH / 2 + 15; 
-            group.add(body); 
-            addFourWheels(group, carW, carL);
-            return group;
+            return rzBuildCar('bot', colorHex);
         }
 
         let customBotScenes = [];
@@ -617,20 +910,8 @@
         
         function buildDefaultTaxi() {
             if(currentCarVisual) car.remove(currentCarVisual);
-            currentCarVisual = new THREE.Group();
-            
-            const yellowMat = new THREE.MeshStandardMaterial({ color: 0xf4b400, roughness: 0.15 });
-            const glassMat = new THREE.MeshStandardMaterial({ color: 0x222226 });
-            
-            const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(115, 38, 170), yellowMat); 
-            bodyMesh.position.y = 35; 
-            currentCarVisual.add(bodyMesh);
-            
-            const cabinMesh = new THREE.Mesh(new THREE.BoxGeometry(95, 30, 95), glassMat); 
-            cabinMesh.position.set(0, 68, -5); 
-            currentCarVisual.add(cabinMesh);
-            
-            addFourWheels(currentCarVisual, 115, 170);
+            currentCarVisual = rzBuildCar('taxi', 0xf4b400);
+            rzAddTaxiExtras(currentCarVisual);
             car.add(currentCarVisual);
         }
         buildDefaultTaxi();
@@ -946,18 +1227,36 @@
         }
 
         function animateHuman(charObj, isMoving, delta) {
+            const body = charObj.body;
             if (isMoving) {
                 charObj.animTimer += delta * 12;
-                let swing = Math.sin(charObj.animTimer) * 0.65;
+                const t = charObj.animTimer;
+                const swing = Math.sin(t) * 0.65;
                 charObj.leftArm.rotation.x = swing;
                 charObj.rightArm.rotation.x = -swing;
                 charObj.leftLeg.rotation.x = -swing;
                 charObj.rightLeg.rotation.x = swing;
+                if (body) {
+                    charObj.leftElbow.rotation.x = -0.25 - 0.4 * Math.max(0, -swing / 0.65);
+                    charObj.rightElbow.rotation.x = -0.25 - 0.4 * Math.max(0, swing / 0.65);
+                    charObj.leftKnee.rotation.x = Math.max(0, Math.cos(t)) * 0.9;
+                    charObj.rightKnee.rotation.x = Math.max(0, -Math.cos(t)) * 0.9;
+                    body.position.y = Math.abs(Math.sin(t)) * 0.7;
+                    body.rotation.y = swing * 0.12;
+                }
             } else {
                 charObj.leftArm.rotation.x = 0;
                 charObj.rightArm.rotation.x = 0;
                 charObj.leftLeg.rotation.x = 0;
                 charObj.rightLeg.rotation.x = 0;
+                if (body) {
+                    charObj.leftElbow.rotation.x = -0.12;
+                    charObj.rightElbow.rotation.x = -0.12;
+                    charObj.leftKnee.rotation.x = 0;
+                    charObj.rightKnee.rotation.x = 0;
+                    body.position.y = 0;
+                    body.rotation.y = 0;
+                }
             }
         }
 
@@ -1211,6 +1510,13 @@
                     camera.lookAt(playerPhysics.posX, targetY, playerPhysics.posZ);
                 }
             }
+
+            const rzTarget = inCar ? car.position : (isInsideBuilding ? camera.position : playerChar.mesh.position);
+            rzSun.position.set(rzTarget.x + rzSunOffset.x, rzTarget.y + rzSunOffset.y, rzTarget.z + rzSunOffset.z);
+            rzSun.target.position.copy(rzTarget);
+            rzSun.target.updateMatrixWorld();
+            rzSky.position.copy(camera.position);
+            rzSkyMat.uniforms.time.value = performance.now() / 1000;
 
             drawMinimap();
             renderer.render(scene, camera);
