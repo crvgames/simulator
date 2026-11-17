@@ -952,10 +952,10 @@
                     
                     car.add(currentCarVisual);
                     statusDiv.style.color = "green"; 
-                    statusDiv.innerText = "Yuklendi! ✔";
+                    statusDiv.innerText = "Yüklendi! ✔";
                 }, function(err) { 
                     statusDiv.style.color = "red"; 
-                    statusDiv.innerText = "Yukleme hatasi."; 
+                    statusDiv.innerText = "Yükleme hatasi."; 
                 });
             };
             reader.readAsArrayBuffer(file);
@@ -1417,7 +1417,7 @@
 
                 if (isInsideBuilding) {
                     promptMsg.style.display = 'block';
-                    promptMsg.innerText = "Binadasınız: Çıkmak İçin 'I' Tuşuna Basın";
+                    promptMsg.innerText = "Binadasınız: Çıkmak İçin 'İ' Tuşuna Basın";
                 } else if (nearDoor) {
                     promptMsg.style.display = 'block';
                     promptMsg.innerText = "Kapıya Yaklaştınız: Girmek İçin 'B' Tuşuna Basın";
